@@ -16,7 +16,7 @@ setup(
     description='A library help to build tcp server/client application',
     long_description=readme,
     author='Sun Jin',
-    author_email='sjfyc@sina.com',
+    author_email='sunjinopensource@qq.com',
     url='https://github.com/sunjinopensource/asynmsg/',
 	packages=['asynmsg'],
     classifiers=[
