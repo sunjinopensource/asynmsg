@@ -205,13 +205,13 @@ class AsynMsgException(Exception):
 
 
 class MessageSizeOverflowError(AsynMsgException):
-    def __init__(self, msg_name, size, max_size):
-        self.msg_name = msg_name
+    def __init__(self, msg_id, size, max_size):
+        self.msg_id = msg_id
         self.size = size
         self.max_size = max_size
 
     def __str__(self):
-        return 'MessageSizeOverflowError: msg_name=%s size=%d max_size=%d' % (self.msg_name, self.size, self.max_size)
+        return 'MessageSizeOverflowError: msg_id=%s size=%d max_size=%d' % (self.msg_id, self.size, self.max_size)
 
 
 class SessionKeepAliveParams:
@@ -233,7 +233,7 @@ def with_message_handler_config(cls):
 
     for k in keys:
         func = order_map[k]
-        cls.register_command_handler(func._message_handler_msg_name, func)
+        cls.register_command_handler(func._message_handler_msg_id, func)
 
     return cls
 
@@ -241,14 +241,14 @@ def with_message_handler_config(cls):
 class message_handler_config:
     total_count = 0
 
-    def __init__(self, msg_name):
-        self.msg_name = msg_name
+    def __init__(self, msg_id):
+        self.msg_id = msg_id
         self.index = self.__class__.total_count
         self.__class__.total_count += 1
 
     def __call__(self, func):
         func._message_handler_index = self.index
-        func._message_handler_msg_name = self.msg_name
+        func._message_handler_msg_id = self.msg_id
         return func
 
 
@@ -360,31 +360,31 @@ class _Session(asyncore.dispatcher):
         self._error.set_error(Error.ERROR_REMOTE_CLOSED)
     """ >>> """
 
-    def handle_message(self, msg_name, msg_data):
-        handler = self.__class__._command_factory.get(msg_name)
+    def handle_message(self, msg_id, msg_data):
+        handler = self.__class__._command_factory.get(msg_id)
         if handler is None:
-            return self.on_unhandled_message(msg_name, msg_data)
+            return self.on_unhandled_message(msg_id, msg_data)
         else:
-            return handler(self, msg_name, msg_data)
+            return handler(self, msg_id, msg_data)
 
-    def on_unhandled_message(self, msg_name, msg_data):
-        logger.warning("unhandled message '%s' from %s:%d", msg_name, self.addr[0], self.addr[1])
+    def on_unhandled_message(self, msg_id, msg_data):
+        logger.warning("unhandled message '%s' from %s:%d", msg_id, self.addr[0], self.addr[1])
 
-    def send_message(self, msg_name, msg_data=None):
+    def send_message(self, msg_id, msg_data=None):
         if self._error.has_error() or self._force_close_time > 0:
             return False
 
-        byte_msg = self.encode_message_to_bytes(msg_name, msg_data)
+        byte_msg = self.encode_message_to_bytes(msg_id, msg_data)
         length = len(byte_msg)
         if length > self.__class__.max_message_size:
-            raise MessageSizeOverflowError(msg_name, length, self.__class__.max_message_size)
+            raise MessageSizeOverflowError(msg_id, length, self.__class__.max_message_size)
 
         self._out_buffer += struct.pack("i", length)
         self._out_buffer += byte_msg
         return True
 
-    def encode_message_to_bytes(self, msg_name, msg_data):
-        return pickle.dumps((msg_name, msg_data))
+    def encode_message_to_bytes(self, msg_id, msg_data):
+        return pickle.dumps((msg_id, msg_data))
 
     def decode_message_from_bytes(self, bytes):
         return pickle.loads(bytes)
@@ -449,11 +449,11 @@ class _Session(asyncore.dispatcher):
                 self.send_message('_system_keep_alive_req', None)
 
     @message_handler_config('_system_keep_alive_req')
-    def on__system_keep_alive_req(self, msg_name, msg_data):
+    def on__system_keep_alive_req(self, msg_id, msg_data):
         self.send_message('_system_keep_alive_ack', None)
 
     @message_handler_config('_system_keep_alive_ack')
-    def on__system_keep_alive_ack(self, msg_name, msg_data):
+    def on__system_keep_alive_ack(self, msg_id, msg_data):
         pass
 
 
@@ -543,10 +543,10 @@ class Server(asyncore.dispatcher):
     def find_session(self, serial):
         return self._session_map.get(serial)
 
-    def broadcast(self, msg_name, msg_data=None):
+    def broadcast(self, msg_id, msg_data=None):
         for session in self._session_map.values():
             if session.is_ready():
-                session.send_message(msg_name, msg_data)
+                session.send_message(msg_id, msg_data)
 
     def _clear_sessions(self):
         for session in list(self._session_map.values()):
