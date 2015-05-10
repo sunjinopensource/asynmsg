@@ -10,11 +10,13 @@ logging.basicConfig(
 
 history_visited_count = 0
 
+@asynmsg.with_message_handler_config
 class ServerSession(asynmsg.SessionS):
     def __init__(self, sock, address):
         asynmsg.SessionS.__init__(self, sock, address)
         self.client_no = -1
 
+    @asynmsg.message_handler_config('Login')
     def on_Login(self, msg_name, msg_data):
         global history_visited_count
         history_visited_count += 1
@@ -22,12 +24,10 @@ class ServerSession(asynmsg.SessionS):
         logging.info("client %-4d: whelcom, the No.%d guest", msg_data, history_visited_count)
         self.send_message('LoginAck', 'login success with No.%d' % history_visited_count)
 
+    @asynmsg.message_handler_config('Ping')
     def on_Ping(self, msg_name, msg_data):
         logging.info("client %-4d: recv Ping %-4s, send Pong", self.client_no, str(msg_data))
         self.send_message('Pong', msg_data)
-
-ServerSession.register_command_handler('Login', ServerSession.on_Login)
-ServerSession.register_command_handler('Ping', ServerSession.on_Ping)
 
 
 class Server(asynmsg.Server):

@@ -6,6 +6,7 @@ import time
 import struct
 import logging
 import asyncore
+import collections
 
 try:
     import cPickle as pickle
@@ -27,6 +28,8 @@ __all__ = [
     "logger",
     "AsynMsgException",
     "MessageSizeOverflowError",
+    "with_message_handler_config",
+    "message_handler_config",
 ]
 
 
@@ -218,6 +221,38 @@ class SessionKeepAliveParams:
         self.probes = probes
 
 
+def with_message_handler_config(cls):
+    order_map = {}
+
+    for func in cls.__dict__.values():
+        if hasattr(func,'_message_handler_index'):
+            order_map[func._message_handler_index] = func
+
+    keys = order_map.keys()
+    keys.sort()
+
+    for k in keys:
+        func = order_map[k]
+        cls.register_command_handler(func._message_handler_msg_name, func)
+
+    return cls
+
+
+class message_handler_config:
+    total_count = 0
+
+    def __init__(self, msg_name):
+        self.msg_name = msg_name
+        self.index = self.__class__.total_count
+        self.__class__.total_count += 1
+
+    def __call__(self, func):
+        func._message_handler_index = self.index
+        func._message_handler_msg_name = self.msg_name
+        return func
+
+
+@with_message_handler_config
 class _Session(asyncore.dispatcher):
     _command_factory = {}
     max_message_size = 16 * 1024
@@ -413,15 +448,13 @@ class _Session(asyncore.dispatcher):
             else:
                 self.send_message('_system_keep_alive_req', None)
 
+    @message_handler_config('_system_keep_alive_req')
     def on__system_keep_alive_req(self, msg_name, msg_data):
         self.send_message('_system_keep_alive_ack', None)
 
+    @message_handler_config('_system_keep_alive_ack')
     def on__system_keep_alive_ack(self, msg_name, msg_data):
         pass
-
-
-_Session.register_command_handler('_system_keep_alive_req', _Session.on__system_keep_alive_req)
-_Session.register_command_handler('_system_keep_alive_ack', _Session.on__system_keep_alive_ack)
 
 
 class SessionS(_Session):
