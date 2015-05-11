@@ -243,7 +243,7 @@ def with_message_handler_config(cls):
     sort_keys = list(keys)
     sort_keys.sort()
 
-    for k in keys:
+    for k in sort_keys:
         func = order_map[k]
         cls.register_command_handler(func._message_handler_msg_id, func)
 
