@@ -1,12 +1,21 @@
 # -*- coding: utf8 -*-
 import os
+import sys
 import socket
 import errno
 import time
 import struct
 import logging
 import asyncore
-import collections
+
+PY2 = sys.version_info[0] == 2
+PY3 = sys.version_info[0] == 3
+if PY3:
+    binary_type = bytes
+elif PY2:
+    binary_type = str
+else:
+    raise RuntimeError('Unsupported python version.')
 
 try:
     import cPickle as pickle
@@ -228,8 +237,11 @@ def with_message_handler_config(cls):
         if hasattr(func,'_message_handler_index'):
             order_map[func._message_handler_index] = func
 
+	# keys can't sort in python 3(the type is dict_keys)
+	# so we first transform it to a list
     keys = order_map.keys()
-    keys.sort()
+    sort_keys = list(keys)
+    sort_keys.sort()
 
     for k in keys:
         func = order_map[k]
@@ -267,11 +279,11 @@ class _Session(asyncore.dispatcher):
 
     def __init__(self, sock, address):
         asyncore.dispatcher.__init__(self, sock)
-        self._sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, not self.__class__.enable_nagle_algorithm)
+        self.socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, not self.__class__.enable_nagle_algorithm)
         self._error = Error()
 
-        self._in_buffer = ''
-        self._out_buffer = ''
+        self._in_buffer = binary_type()
+        self._out_buffer = binary_type()
 
         self._last_read_time = time.clock()
         self._keep_alive_probe_count = 0
