@@ -21,7 +21,7 @@ class ServerSession(asynmsg.SessionS):
         global history_visited_count
         history_visited_count += 1
         self.client_no = msg_data
-        logging.info("client %-4d: whelcom, the No.%d guest", msg_data, history_visited_count)
+        logging.info("client %-4d: welcome, the No.%d guest", msg_data, history_visited_count)
         self.send_message('LoginAck', 'login success with No.%d' % history_visited_count)
 
     @asynmsg.message_handler_config('Ping')
