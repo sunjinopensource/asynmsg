@@ -354,7 +354,8 @@ class _Session(asyncore.dispatcher):
         return (not self._error.has_error()) and len(self._out_buffer) > 0
 
     def handle_read(self):
-        assert not self._error.has_error()
+        if self._error.has_error():
+            return
 
         data = self.recv(self.__class__.max_recv_size_once)
         if data:
@@ -363,7 +364,8 @@ class _Session(asyncore.dispatcher):
             self._keep_alive_probe_count = 0
 
     def handle_write(self):
-        assert not self._error.has_error()
+        if self._error.has_error():
+            return
 
         num = self.send(self._out_buffer[:self.__class__.max_send_size_once])
         if num > 0:
