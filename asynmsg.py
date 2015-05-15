@@ -648,6 +648,9 @@ class Client(asyncore.dispatcher):
     def get_error(self):
         return self._error
 
+    def get_session(self):
+        return self._session
+
     def _open_session(self, sock, address):
         session = self.__class__.session_class(sock, address)
         if not session.check_open():
@@ -735,6 +738,9 @@ class ClientBlockConnect:
 
     def get_error(self):
         return self._error
+
+    def get_session(self):
+        return self._session
 
     def _open_session(self, sock, address):
         session = self.__class__.session_class(sock, address)
