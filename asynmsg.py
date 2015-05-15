@@ -289,6 +289,7 @@ class _Session(asyncore.dispatcher):
         self._keep_alive_probe_count = 0
 
         self._force_close_time = -1
+        self._force_wait_timeout = False
 
         self._ready = True
 
@@ -296,8 +297,10 @@ class _Session(asyncore.dispatcher):
         asyncore.dispatcher.close(self)
 
     # close on no data to send or timeout, like linger
-    def force_close(self, timeout=5):
+    # if force_wait_timeout is True, wait even if no data to send
+    def force_close(self, timeout=5, force_wait_timeout=False):
         self._force_close_time = time.clock() + timeout
+        self._force_wait_timeout = force_wait_timeout
 
     def set_ready(self, ready=True):
         self._ready = ready
@@ -325,8 +328,9 @@ class _Session(asyncore.dispatcher):
 
     def tick(self):
         if not self._error.has_error():
-            if (self._force_close_time > 0) and (len(self._out_buffer) == 0 or self._force_close_time < time.clock()):
-                self._error.set_error(Error.ERROR_FORCE_CLOSE)
+            if self._force_close_time > 0:
+                if (not self._force_wait_timeout and len(self._out_buffer) == 0) or self._force_close_time < time.clock():
+                    self._error.set_error(Error.ERROR_FORCE_CLOSE)
 
         if not self._error.has_error():
             self._keep_alive_check()
