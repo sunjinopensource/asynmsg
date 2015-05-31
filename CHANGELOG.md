@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.1.4
+trivial: modify client in example - remove timeout when construct Client
+
 ## 0.1.3
 
 Session.force_close add force_wait_timeout param

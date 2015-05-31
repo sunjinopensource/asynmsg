@@ -40,6 +40,6 @@ Client::
     class Client(asynmsg.ClientBlockConnect):
         session_class = ClientSession
 
-    client = Client(('127.0.0.1', 12345), 5)
+    client = Client(('127.0.0.1', 12345))
     if client.is_started():
         asynmsg.run_forever()

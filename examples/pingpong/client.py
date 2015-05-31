@@ -52,7 +52,7 @@ class Client(asynmsg.ClientBlockConnect):
 
 def main():
     logging.info("========= client %d started =========", client_number)
-    client = Client(('127.0.0.1', 12345), 5)
+    client = Client(('127.0.0.1', 12345))
     if not client.is_started():
         logging.error('failed to connect server: %s', str(client.get_error()))
         return
