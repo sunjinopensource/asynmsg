@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.5
+do not register message handler with duplicate id
+fix all classes use the same message map bug
+
 ## 0.1.4
 trivial: modify client in example - remove timeout when construct Client
 
