@@ -2,6 +2,7 @@
 
 ## 0.1.6
 + check_session_open,on_session_opened,on_session_closing,on_session_closed
++ Session.get_manage_owner
 
 ## 0.1.5
 do not register message handler with duplicate id

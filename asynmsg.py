@@ -283,6 +283,9 @@ class _Session(asyncore.dispatcher):
 
     def __init__(self, sock, address):
         asyncore.dispatcher.__init__(self, sock)
+
+        self._manage_owner = None
+
         self.socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, not self.__class__.enable_nagle_algorithm)
         self._error = Error()
 
@@ -305,6 +308,9 @@ class _Session(asyncore.dispatcher):
     def force_close(self, timeout=5, force_wait_timeout=False):
         self._force_close_time = time.clock() + timeout
         self._force_wait_timeout = force_wait_timeout
+
+    def get_manage_owner(self):
+        return self._manage_owner
 
     def set_ready(self, ready=True):
         self._ready = ready
@@ -590,6 +596,7 @@ class Server(asyncore.dispatcher):
         if not self.check_session_open(session):
             session.del_channel()
             return False
+        session._manage_owner = self
         session._serial = self._next_serial
         self._next_serial += 1
         self._session_map[session.get_serial()] = session
@@ -599,6 +606,7 @@ class Server(asyncore.dispatcher):
     def _close_session(self, session):
         self.on_session_closing(session)
         del self._session_map[session.get_serial()]
+        session._manage_owner = None
         session.close()
         self.on_session_closed(session)
 
@@ -688,6 +696,7 @@ class Client(asyncore.dispatcher):
         if not self.check_session_open(session):
             session.del_channel()
             return False
+        session._manage_owner = self
         self._session = session
         self.on_session_opened(session)
         return True
@@ -697,6 +706,7 @@ class Client(asyncore.dispatcher):
 
         self.on_session_closing(session)
         self._session = None
+        session._manage_owner = None
         session.close()
         self.on_session_closed(session)
 
@@ -791,6 +801,7 @@ class ClientBlockConnect:
         if not self.check_session_open(session):
             session.del_channel()
             return False
+        session._manage_owner = self
         self._session = session
         self.on_session_opened(session)
         return True
@@ -800,5 +811,6 @@ class ClientBlockConnect:
 
         self.on_session_closing(session)
         self._session = None
+        session._manage_owner = None
         session.close()
         self.on_session_closed(session)
