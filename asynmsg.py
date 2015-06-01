@@ -231,6 +231,10 @@ class SessionKeepAliveParams:
 
 
 def with_message_handler_config(cls):
+    cls._command_factory = {}
+    cls.register_command_handler('_system_keep_alive_req', cls.on__system_keep_alive_req)
+    cls.register_command_handler('_system_keep_alive_ack', cls.on__system_keep_alive_ack)
+
     order_map = {}
 
     for func in cls.__dict__.values():
@@ -264,9 +268,7 @@ class message_handler_config:
         return func
 
 
-@with_message_handler_config
 class _Session(asyncore.dispatcher):
-    _command_factory = {}
     max_message_size = 16 * 1024
     max_send_size_once = 16 * 1024
     max_recv_size_once = 16 * 1024
@@ -466,11 +468,9 @@ class _Session(asyncore.dispatcher):
             else:
                 self.send_message('_system_keep_alive_req', None)
 
-    @message_handler_config('_system_keep_alive_req')
     def on__system_keep_alive_req(self, msg_id, msg_data):
         self.send_message('_system_keep_alive_ack', None)
 
-    @message_handler_config('_system_keep_alive_ack')
     def on__system_keep_alive_ack(self, msg_id, msg_data):
         pass
 
