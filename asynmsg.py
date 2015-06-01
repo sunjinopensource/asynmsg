@@ -22,7 +22,7 @@ try:
 except ImportError:
     import pickle
 
-__version__ = '0.1.5'
+__version__ = '0.1.6'
 __all__ = [
     "SessionKeepAliveParams",
     "Error",
@@ -568,6 +568,18 @@ class Server(asyncore.dispatcher):
             if session.is_ready():
                 session.send_message(msg_id, msg_data)
 
+    def check_session_open(self, session):
+        return session.check_open()
+
+    def on_session_opened(self, session):
+        session.on_opened()
+
+    def on_session_closing(self, session):
+        session.on_closing()
+
+    def on_session_closed(self, session):
+        session.on_closed()
+
     def _clear_sessions(self):
         for session in list(self._session_map.values()):
             self._close_session(session)
@@ -575,20 +587,20 @@ class Server(asyncore.dispatcher):
 
     def _open_session(self, sock, address):
         session = self.__class__.session_class(sock, address)
-        session._serial = self._next_serial
-        if not session.check_open():
+        if not self.check_session_open(session):
             session.del_channel()
             return False
-        self._session_map[session.get_serial()] = session
+        session._serial = self._next_serial
         self._next_serial += 1
-        session.on_opened()
+        self._session_map[session.get_serial()] = session
+        self.on_session_opened(session)
         return True
 
     def _close_session(self, session):
-        session.on_closing()
+        self.on_session_closing(session)
         del self._session_map[session.get_serial()]
         session.close()
-        session.on_closed()
+        self.on_session_closed(session)
 
 
 class SessionC(_Session):
@@ -659,22 +671,34 @@ class Client(asyncore.dispatcher):
     def get_session(self):
         return self._session
 
+    def check_session_open(self, session):
+        return session.check_open()
+
+    def on_session_opened(self, session):
+        session.on_opened()
+
+    def on_session_closing(self, session):
+        session.on_closing()
+
+    def on_session_closed(self, session):
+        session.on_closed()
+
     def _open_session(self, sock, address):
         session = self.__class__.session_class(sock, address)
-        if not session.check_open():
+        if not self.check_session_open(session):
             session.del_channel()
             return False
         self._session = session
-        session.on_opened()
+        self.on_session_opened(session)
         return True
 
     def _close_session(self):
         session = self._session
 
-        session.on_closing()
+        self.on_session_closing(session)
         self._session = None
         session.close()
-        session.on_closed()
+        self.on_session_closed(session)
 
     def handle_connect(self):
         self.del_channel()
@@ -750,19 +774,31 @@ class ClientBlockConnect:
     def get_session(self):
         return self._session
 
+    def check_session_open(self, session):
+        return session.check_open()
+
+    def on_session_opened(self, session):
+        session.on_opened()
+
+    def on_session_closing(self, session):
+        session.on_closing()
+
+    def on_session_closed(self, session):
+        session.on_closed()
+
     def _open_session(self, sock, address):
         session = self.__class__.session_class(sock, address)
-        if not session.check_open():
+        if not self.check_session_open(session):
             session.del_channel()
             return False
         self._session = session
-        session.on_opened()
+        self.on_session_opened(session)
         return True
 
     def _close_session(self):
         session = self._session
 
-        session.on_closing()
+        self.on_session_closing(session)
         self._session = None
         session.close()
-        session.on_closed()
+        self.on_session_closed(session)
