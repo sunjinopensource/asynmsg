@@ -277,6 +277,8 @@ class _Session(asyncore.dispatcher):
 
     @classmethod
     def register_command_handler(cls, cmd, handler):
+        if cmd in cls._command_factory:
+            raise RuntimeError("Can't register message handler with duplicate id '%s'." % cmd)
         cls._command_factory[cmd] = handler
 
     def __init__(self, sock, address):
