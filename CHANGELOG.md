@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.1.7
++ Server.get_sessions Server.get_ready_sessions Client.get_ready_session
+
 ## 0.1.6
 + check_session_open,on_session_opened,on_session_closing,on_session_closed
 + Session.get_manage_owner
