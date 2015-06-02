@@ -569,6 +569,19 @@ class Server(asyncore.dispatcher):
     def find_session(self, serial):
         return self._session_map.get(serial)
 
+    def get_sessions(self):
+        result = []
+        for session in self._session_map.values():
+            result.append(session)
+        return result
+
+    def get_ready_sessions(self):
+        result = []
+        for session in self._session_map.values():
+            if session.is_ready():
+                result.append(session)
+        return result
+
     def broadcast(self, msg_id, msg_data=None):
         for session in self._session_map.values():
             if session.is_ready():
@@ -679,6 +692,9 @@ class Client(asyncore.dispatcher):
     def get_session(self):
         return self._session
 
+    def get_ready_session(self):
+        return self._session if (self._session is not None and self._session.is_ready()) else None
+
     def check_session_open(self, session):
         return session.check_open()
 
@@ -783,6 +799,9 @@ class ClientBlockConnect:
 
     def get_session(self):
         return self._session
+
+    def get_ready_session(self):
+        return self._session if (self._session is not None and self._session.is_ready()) else None
 
     def check_session_open(self, session):
         return session.check_open()
