@@ -11,7 +11,7 @@ import asyncore
 PY2 = sys.version_info[0] == 2
 PY3 = sys.version_info[0] == 3
 if PY3:
-    binary_type = bytes
+    binary_type = bytearray
 elif PY2:
     binary_type = str
 else:
@@ -22,7 +22,7 @@ try:
 except ImportError:
     import pickle
 
-__version__ = '0.1.7'
+__version__ = '0.1.8'
 __all__ = [
     "SessionKeepAliveParams",
     "Error",

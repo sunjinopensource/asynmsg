@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.1.8
+PY3: binary_type from bytes to bytearray
+
 ## 0.1.7
 + Server.get_sessions Server.get_ready_sessions Client.get_ready_session
 
