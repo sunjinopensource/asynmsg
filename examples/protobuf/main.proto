@@ -1,0 +1,29 @@
+package Main;
+
+enum IDEnum
+{
+	ID_Login = 1;
+	ID_LoginAck = 2;
+	ID_Ping = 3;
+	ID_Pong = 4;
+}
+
+message Login
+{
+	required int32 client_number = 1;
+}
+
+message LoginAck
+{
+	required string result = 1;
+}
+
+message Ping
+{
+    required int32 data = 1;
+}
+
+message Pong
+{
+	required int32 data = 1;
+}
