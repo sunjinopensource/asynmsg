@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.1.10
+fix message length serialize
+
 ## 0.1.9
 + configurable: message size pack format
 

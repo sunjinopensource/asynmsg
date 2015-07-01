@@ -404,7 +404,8 @@ class _Session(asyncore.dispatcher):
             return False
 
         byte_msg = self.encode_message_to_bytes(msg_id, msg_data)
-        length = len(byte_msg)
+        length = struct.calcsize(self.__class__.message_size_pack_format) + len(byte_msg)
+
         if length > self.__class__.max_message_size:
             raise MessageSizeOverflowError(msg_id, length, self.__class__.max_message_size)
 
@@ -447,13 +448,13 @@ class _Session(asyncore.dispatcher):
         if buff_length < size_length:
             return 0
         length = struct.unpack_from(self.__class__.message_size_pack_format, self._in_buffer)[0]
-        if length <= 0 or length > self.__class__.max_message_size:
+        if length < size_length or length > self.__class__.max_message_size:
             logger.error('invalid message size from %s:%d, size=%d max_size=%d', self.addr[0], self.addr[1], length, self.__class__.max_message_size)
             self._error.set_error(Error.ERROR_UNPACK_INVALID_MESSAGE_SIZE)
             return -1
-        if buff_length < size_length + length:
+        if buff_length < length:
             return 0
-        byte_msg = self._in_buffer[size_length:size_length+length]
+        byte_msg = self._in_buffer[size_length:length]
 
         try:
             pair = self.decode_message_from_bytes(byte_msg)
@@ -461,7 +462,7 @@ class _Session(asyncore.dispatcher):
             self._error.set_error(Error.ERROR_UNPACK_DECODE_MESSAGE)
             return -1
 
-        self._in_buffer = self._in_buffer[size_length+length:]
+        self._in_buffer = self._in_buffer[length:]
         return pair
 
     def _keep_alive_check(self):
