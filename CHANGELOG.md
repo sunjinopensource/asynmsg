@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.1.9
++ configurable: message size pack format
+
 ## 0.1.8
 PY3: binary_type from bytes to bytearray
 

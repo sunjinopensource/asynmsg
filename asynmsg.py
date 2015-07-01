@@ -22,7 +22,7 @@ try:
 except ImportError:
     import pickle
 
-__version__ = '0.1.8'
+__version__ = '0.1.9'
 __all__ = [
     "SessionKeepAliveParams",
     "Error",
@@ -269,6 +269,7 @@ class message_handler_config:
 
 
 class _Session(asyncore.dispatcher):
+    message_size_pack_format = 'H' # 2 bytes
     max_message_size = 16 * 1024
     max_send_size_once = 16 * 1024
     max_recv_size_once = 16 * 1024
@@ -407,7 +408,7 @@ class _Session(asyncore.dispatcher):
         if length > self.__class__.max_message_size:
             raise MessageSizeOverflowError(msg_id, length, self.__class__.max_message_size)
 
-        self._out_buffer += struct.pack("i", length)
+        self._out_buffer += struct.pack(self.__class__.message_size_pack_format, length)
         self._out_buffer += byte_msg
         return True
 
@@ -441,11 +442,11 @@ class _Session(asyncore.dispatcher):
     # 0: retry
     # -1: error
     def _unpack_message(self):
-        size_length = struct.calcsize("i")
+        size_length = struct.calcsize(self.__class__.message_size_pack_format)
         buff_length = len(self._in_buffer)
         if buff_length < size_length:
             return 0
-        length = struct.unpack_from("i", self._in_buffer)[0]
+        length = struct.unpack_from(self.__class__.message_size_pack_format, self._in_buffer)[0]
         if length <= 0 or length > self.__class__.max_message_size:
             logger.error('invalid message size from %s:%d, size=%d max_size=%d', self.addr[0], self.addr[1], length, self.__class__.max_message_size)
             self._error.set_error(Error.ERROR_UNPACK_INVALID_MESSAGE_SIZE)
