@@ -22,7 +22,7 @@ try:
 except ImportError:
     import pickle
 
-__version__ = '0.1.10'
+__version__ = '0.1.11'
 __all__ = [
     "SessionKeepAliveParams",
     "Error",
@@ -70,8 +70,7 @@ def _is_valid_message_format(msg):
         return False
     if len(msg) != 2:
         return False
-    name = msg[0]
-    if not isinstance(name, str) or name == "":
+    if msg[0] is None:
         return False
     return True
 

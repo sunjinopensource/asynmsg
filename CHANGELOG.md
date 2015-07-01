@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.1.11
+fix _is_valid_message_format: msg_id can be any type not None
+
 ## 0.1.10
 fix message length serialize
 
