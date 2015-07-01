@@ -22,7 +22,7 @@ try:
 except ImportError:
     import pickle
 
-__version__ = '0.1.9'
+__version__ = '0.1.10'
 __all__ = [
     "SessionKeepAliveParams",
     "Error",
