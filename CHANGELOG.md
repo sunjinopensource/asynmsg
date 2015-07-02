@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.1.12
+fix id_system_keep_alive_req, id_system_keep_alive_ack
+
 ## 0.1.11
 fix _is_valid_message_format: msg_id can be any type not None
 

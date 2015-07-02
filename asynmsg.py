@@ -22,7 +22,7 @@ try:
 except ImportError:
     import pickle
 
-__version__ = '0.1.11'
+__version__ = '0.1.12'
 __all__ = [
     "SessionKeepAliveParams",
     "Error",
@@ -229,28 +229,34 @@ class SessionKeepAliveParams:
         self.probes = probes
 
 
+def with_message_handler_config_ex(id_system_keep_alive_req, id_system_keep_alive_ack):
+    def wrapper(cls):
+        cls._command_factory = {}
+        cls.register_command_handler(id_system_keep_alive_req, cls.on__system_keep_alive_req)
+        cls.register_command_handler(id_system_keep_alive_ack, cls.on__system_keep_alive_ack)
+
+        order_map = {}
+
+        for func in cls.__dict__.values():
+            if hasattr(func,'_message_handler_index'):
+                order_map[func._message_handler_index] = func
+
+        # keys can't sort in python 3(the type is dict_keys)
+        # so we first transform it to a list
+        keys = order_map.keys()
+        sort_keys = list(keys)
+        sort_keys.sort()
+
+        for k in sort_keys:
+            func = order_map[k]
+            cls.register_command_handler(func._message_handler_msg_id, func)
+
+        return cls
+    return wrapper
+
+
 def with_message_handler_config(cls):
-    cls._command_factory = {}
-    cls.register_command_handler('_system_keep_alive_req', cls.on__system_keep_alive_req)
-    cls.register_command_handler('_system_keep_alive_ack', cls.on__system_keep_alive_ack)
-
-    order_map = {}
-
-    for func in cls.__dict__.values():
-        if hasattr(func,'_message_handler_index'):
-            order_map[func._message_handler_index] = func
-
-	# keys can't sort in python 3(the type is dict_keys)
-	# so we first transform it to a list
-    keys = order_map.keys()
-    sort_keys = list(keys)
-    sort_keys.sort()
-
-    for k in sort_keys:
-        func = order_map[k]
-        cls.register_command_handler(func._message_handler_msg_id, func)
-
-    return cls
+    return with_message_handler_config_ex('_system_keep_alive_req', '_system_keep_alive_ack')(cls)
 
 
 class message_handler_config:
@@ -475,10 +481,16 @@ class _Session(asyncore.dispatcher):
             if self._keep_alive_probe_count > self.__class__.keep_alive_params.probes:
                 self._error.set_error(Error.ERROR_KEEP_ALIVE_TIMEOUT)
             else:
-                self.send_message('_system_keep_alive_req', None)
+                self.send__system_keep_alive_req()
+
+    def send__system_keep_alive_req(self):
+        self.send_message('_system_keep_alive_req', None)
+
+    def send__system_keep_alive_ack(self):
+        self.send_message('_system_keep_alive_ack', None)
 
     def on__system_keep_alive_req(self, msg_id, msg_data):
-        self.send_message('_system_keep_alive_ack', None)
+        self.send__system_keep_alive_ack()
 
     def on__system_keep_alive_ack(self, msg_id, msg_data):
         pass
