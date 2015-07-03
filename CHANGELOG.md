@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.1.13
++ only_stop_self_when_tick_error
+
 ## 0.1.12
 fix id_system_keep_alive_req, id_system_keep_alive_ack
 

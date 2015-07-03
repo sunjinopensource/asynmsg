@@ -22,7 +22,7 @@ try:
 except ImportError:
     import pickle
 
-__version__ = '0.1.12'
+__version__ = '0.1.13'
 __all__ = [
     "SessionKeepAliveParams",
     "Error",
@@ -105,7 +105,7 @@ def _run_once(runner_list, extra_tick, use_poll):
         asyncore.loop(0, use_poll, None, 1)
         for runner in runner_list:
             if not runner.tick():
-                return False
+                return runner
     if extra_tick is not None:
         code = extra_tick()
         if code is False:
@@ -118,11 +118,23 @@ def run_once(runner_list=None, extra_tick=Sleep(0.001), use_poll=False, auto_sto
         runner_list = _runner_list
 
     code = _run_once(runner_list, extra_tick, use_poll)
-    if not code:
+    if code is True:  # no error
+        return True
+    elif code is False:  # extra tick error
         if auto_stop:
             for runner in list(runner_list):
                 runner.stop()
         return False
+    else:  # runner tick error
+        if code.only_stop_self_when_tick_error:
+            if auto_stop:
+                code.stop()
+            return True
+        else:
+            if auto_stop:
+                for runner in list(runner_list):
+                    runner.stop()
+            return False
     return True
 
 
@@ -511,8 +523,10 @@ class SessionS(_Session):
     def on_closing(self):
         logger.info('close connection from %s:%d (%s)', self.addr[0], self.addr[1], str(self._error))
 
+
 class Server(asyncore.dispatcher):
     session_class = SessionS
+    only_stop_self_when_tick_error = False
 
     def __init__(self, address):
         asyncore.dispatcher.__init__(self)
@@ -650,6 +664,7 @@ class SessionC(_Session):
 
 class Client(asyncore.dispatcher):
     session_class = SessionC
+    only_stop_self_when_tick_error = False
 
     def __init__(self, address, timeout=5):
         asyncore.dispatcher.__init__(self)
@@ -751,6 +766,7 @@ class Client(asyncore.dispatcher):
 
 class ClientBlockConnect:
     session_class = SessionC
+    only_stop_self_when_tick_error = False
 
     def __init__(self, address, timeout=5):
         self._started = False
