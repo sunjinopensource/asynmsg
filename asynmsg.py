@@ -22,7 +22,7 @@ try:
 except ImportError:
     import pickle
 
-__version__ = '0.1.13'
+__version__ = '0.1.14'
 __all__ = [
     "SessionKeepAliveParams",
     "Error",
@@ -241,34 +241,28 @@ class SessionKeepAliveParams:
         self.probes = probes
 
 
-def with_message_handler_config_ex(id_system_keep_alive_req, id_system_keep_alive_ack):
-    def wrapper(cls):
-        cls._command_factory = {}
-        cls.register_command_handler(id_system_keep_alive_req, cls.on__system_keep_alive_req)
-        cls.register_command_handler(id_system_keep_alive_ack, cls.on__system_keep_alive_ack)
-
-        order_map = {}
-
-        for func in cls.__dict__.values():
-            if hasattr(func,'_message_handler_index'):
-                order_map[func._message_handler_index] = func
-
-        # keys can't sort in python 3(the type is dict_keys)
-        # so we first transform it to a list
-        keys = order_map.keys()
-        sort_keys = list(keys)
-        sort_keys.sort()
-
-        for k in sort_keys:
-            func = order_map[k]
-            cls.register_command_handler(func._message_handler_msg_id, func)
-
-        return cls
-    return wrapper
-
-
 def with_message_handler_config(cls):
-    return with_message_handler_config_ex('_system_keep_alive_req', '_system_keep_alive_ack')(cls)
+    cls._command_factory = {}
+    cls.register_command_handler(cls.message_id_system_keep_alive_req, cls.on__system_keep_alive_req)
+    cls.register_command_handler(cls.message_id_system_keep_alive_ack, cls.on__system_keep_alive_ack)
+
+    order_map = {}
+
+    for func in cls.__dict__.values():
+        if hasattr(func,'_message_handler_index'):
+            order_map[func._message_handler_index] = func
+
+	# keys can't sort in python 3(the type is dict_keys)
+	# so we first transform it to a list
+    keys = order_map.keys()
+    sort_keys = list(keys)
+    sort_keys.sort()
+
+    for k in sort_keys:
+        func = order_map[k]
+        cls.register_command_handler(func._message_handler_msg_id, func)
+
+    return cls
 
 
 class message_handler_config:
@@ -286,6 +280,8 @@ class message_handler_config:
 
 
 class _Session(asyncore.dispatcher):
+    message_id_system_keep_alive_req = '_system_keep_alive_req'
+    message_id_system_keep_alive_ack = '_system_keep_alive_ack'
     message_size_pack_format = 'H' # 2 bytes
     max_message_size = 16 * 1024
     max_send_size_once = 16 * 1024
@@ -496,10 +492,10 @@ class _Session(asyncore.dispatcher):
                 self.send__system_keep_alive_req()
 
     def send__system_keep_alive_req(self):
-        self.send_message('_system_keep_alive_req', None)
+        self.send_message(self.__class__.message_id_system_keep_alive_req, None)
 
     def send__system_keep_alive_ack(self):
-        self.send_message('_system_keep_alive_ack', None)
+        self.send_message(self.__class__.message_id_system_keep_alive_ack, None)
 
     def on__system_keep_alive_req(self, msg_id, msg_data):
         self.send__system_keep_alive_ack()
