@@ -236,10 +236,12 @@ class MessageSizeOverflowError(AsynMsgException):
 
 
 class SessionKeepAliveParams:
-    def __init__(self, idle_time=30, interval=10, probes=3):
+    def __init__(self, idle_time=30, interval=10, probes=3, ping_id='_system_keep_alive_req', pong_id='_system_keep_alive_ack'):
         self.idle_time = idle_time
         self.interval = interval
         self.probes = probes
+        self.ping_id = ping_id
+        self.pong_id = pong_id
 
 
 class MessagePacker:
@@ -261,7 +263,7 @@ class MessagePacker:
 
 class MessagePacker_Pickle(MessagePacker):
     def __init__(self, size_fmt='H'):
-        super(self, MessagePacker_Pickle).__init__(size_fmt)
+        super(MessagePacker_Pickle, self).__init__(size_fmt)
 
     def pack(self, msg_id, msg_data):
         return pickle.dumps((msg_id, msg_data))
@@ -272,7 +274,7 @@ class MessagePacker_Pickle(MessagePacker):
 
 class MessagePacker_Struct(MessagePacker):
     def __init__(self, size_fmt='H', id_fmt='H'):
-        super(self, MessagePacker_Pickle).__init__(size_fmt)
+        super(MessagePacker_Struct, self).__init__(size_fmt)
         self._id_fmt = id_fmt
 
     def pack(self, msg_id, msg_data):
@@ -286,8 +288,11 @@ class MessagePacker_Struct(MessagePacker):
 
 def with_message_handler_config(cls):
     cls._command_factory = {}
-    cls.register_command_handler(cls.message_id_system_keep_alive_req, cls.on__system_keep_alive_req)
-    cls.register_command_handler(cls.message_id_system_keep_alive_ack, cls.on__system_keep_alive_ack)
+    if cls.keep_alive_params is not None:
+        #def _on_keep_alive_ping(self, msg_id, msg_data):
+        #    self.send_message(cls.keep_alive_params.pong_id)
+        cls.register_command_handler(cls.keep_alive_params.ping_id,
+                                     lambda self, msg_id, msg_data: self.send_message(cls.keep_alive_params.pong_id))
 
     order_map = {}
 
@@ -323,13 +328,11 @@ class message_handler_config:
 
 
 class _Session(asyncore.dispatcher):
-    message_id_system_keep_alive_req = '_system_keep_alive_req'
-    message_id_system_keep_alive_ack = '_system_keep_alive_ack'
+    keep_alive_params = SessionKeepAliveParams()  # set None to disable
     message_packer = MessagePacker_Pickle()
     max_message_size = 16 * 1024
     max_send_size_once = 16 * 1024
     max_recv_size_once = 16 * 1024
-    keep_alive_params = SessionKeepAliveParams()
     enable_nagle_algorithm = False
 
     @classmethod
@@ -516,6 +519,9 @@ class _Session(asyncore.dispatcher):
         return pair
 
     def _keep_alive_check(self):
+        if self.__class__.keep_alive_params is None:
+            return
+
         if self._keep_alive_probe_count > self.__class__.keep_alive_params.probes:
             return
 
@@ -526,19 +532,10 @@ class _Session(asyncore.dispatcher):
             if self._keep_alive_probe_count > self.__class__.keep_alive_params.probes:
                 self._error.set_error(Error.ERROR_KEEP_ALIVE_TIMEOUT)
             else:
-                self.send__system_keep_alive_req()
+                self.send_message(self.__class__.keep_alive_params.ping_id)
 
-    def send__system_keep_alive_req(self):
-        self.send_message(self.__class__.message_id_system_keep_alive_req)
-
-    def send__system_keep_alive_ack(self):
-        self.send_message(self.__class__.message_id_system_keep_alive_ack)
-
-    def on__system_keep_alive_req(self, msg_id, msg_data):
-        self.send__system_keep_alive_ack()
-
-    def on__system_keep_alive_ack(self, msg_id, msg_data):
-        pass
+    def _on_keep_alive_ping(self, msg_id, msg_data):
+        self.send_message(self.__class__.keep_alive_params.pong_id)
 
 
 class SessionS(_Session):
