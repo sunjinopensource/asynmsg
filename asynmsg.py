@@ -236,7 +236,7 @@ class MessageSizeOverflowError(AsynMsgException):
 
 
 class SessionKeepAliveParams:
-    def __init__(self, idle_time=30, interval=10, probes=3, ping_id='_system_keep_alive_req', pong_id='_system_keep_alive_ack'):
+    def __init__(self, idle_time=30, interval=10, probes=3, ping_id='keep_alive_ping', pong_id='keep_alive_pong'):
         self.idle_time = idle_time
         self.interval = interval
         self.probes = probes
@@ -289,10 +289,12 @@ class MessagePacker_Struct(MessagePacker):
 def with_message_handler_config(cls):
     cls._command_factory = {}
     if cls.keep_alive_params is not None:
-        #def _on_keep_alive_ping(self, msg_id, msg_data):
-        #    self.send_message(cls.keep_alive_params.pong_id)
-        cls.register_command_handler(cls.keep_alive_params.ping_id,
-                                     lambda self, msg_id, msg_data: self.send_message(cls.keep_alive_params.pong_id))
+        def _on_keep_alive_ping(self, msg_id, msg_data):
+            self.send_message(cls.keep_alive_params.pong_id)
+        def _on_keep_alive_pong(self, msg_id, msg_data):
+            pass
+        cls.register_command_handler(cls.keep_alive_params.ping_id, _on_keep_alive_ping)
+        cls.register_command_handler(cls.keep_alive_params.pong_id, _on_keep_alive_pong)
 
     order_map = {}
 
