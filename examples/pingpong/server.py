@@ -31,7 +31,7 @@ class ServerSession(asynmsg.SessionS):
 
 
 class Server(asynmsg.Server):
-	session_class = ServerSession
+    session_class = ServerSession
 
 
 def main():
