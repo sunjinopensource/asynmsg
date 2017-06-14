@@ -249,11 +249,11 @@ class MessagePacker:
         self._size_fmt = size_fmt
 
     def pack(self, msg_id, msg_data):
-        """pack to bytes"""
+        """ Pack to bytes, msg_data may be any type(including None)"""
         raise NotImplementedError
 
     def unpack(self, bytes):
-        """unpack to pair of (msg_id, msg_data)"""
+        """Unpack to pair of (msg_id, msg_data)"""
         raise NotImplementedError
 
     @property
@@ -278,7 +278,10 @@ class MessagePacker_Struct(MessagePacker):
         self._id_fmt = id_fmt
 
     def pack(self, msg_id, msg_data):
-        return struct.pack(self._id_fmt, msg_id) + msg_data
+        bytes = struct.pack(self._id_fmt, msg_id)
+        if msg_data is not None:
+            bytes += msg_data
+        return bytes
 
     def unpack(self, bytes):
         msg_id = struct.unpack_from(self._id_fmt, bytes)[0]
@@ -460,7 +463,7 @@ class _Session(asyncore.dispatcher):
     def on_unhandled_message(self, msg_id, msg_data):
         logger.warning("unhandled message '%s' from %s:%d", msg_id, self.addr[0], self.addr[1])
 
-    def send_message(self, msg_id, msg_data=BinaryType()):
+    def send_message(self, msg_id, msg_data=None):
         if self._error.has_error() or self._force_close_time > 0:
             return False
 
