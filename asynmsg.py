@@ -241,6 +241,48 @@ class SessionKeepAliveParams:
         self.probes = probes
 
 
+class MessagePacker:
+    def __init__(self, size_fmt='H'):
+        self._size_fmt = size_fmt
+
+    def pack(self, msg_id, msg_data):
+        """pack to bytes"""
+        raise NotImplementedError
+
+    def unpack(self, bytes):
+        """unpack to pair of (msg_id, msg_data)"""
+        raise NotImplementedError
+
+    @property
+    def size_fmt(self):
+        return self._size_fmt
+
+
+class MessagePacker_Pickle(MessagePacker):
+    def __init__(self, size_fmt='H'):
+        super(self, MessagePacker_Pickle).__init__(size_fmt)
+
+    def pack(self, msg_id, msg_data):
+        return pickle.dumps((msg_id, msg_data))
+
+    def unpack(self, bytes):
+        return pickle.loads(bytes)
+
+
+class MessagePacker_Struct(MessagePacker):
+    def __init__(self, size_fmt='H', id_fmt='H'):
+        super(self, MessagePacker_Pickle).__init__(size_fmt)
+        self._id_fmt = id_fmt
+
+    def pack(self, msg_id, msg_data):
+        return struct.pack(self._id_fmt, msg_id) + msg_data
+
+    def unpack(self, bytes):
+        msg_id = struct.unpack_from(self._id_fmt, bytes)[0]
+        msg_data = bytes[2:]
+        return (msg_id, msg_data)
+
+
 def with_message_handler_config(cls):
     cls._command_factory = {}
     cls.register_command_handler(cls.message_id_system_keep_alive_req, cls.on__system_keep_alive_req)
@@ -282,7 +324,7 @@ class message_handler_config:
 class _Session(asyncore.dispatcher):
     message_id_system_keep_alive_req = '_system_keep_alive_req'
     message_id_system_keep_alive_ack = '_system_keep_alive_ack'
-    message_size_pack_format = 'H' # 2 bytes
+    message_packer = MessagePacker_Pickle()
     max_message_size = 16 * 1024
     max_send_size_once = 16 * 1024
     max_recv_size_once = 16 * 1024
@@ -412,25 +454,19 @@ class _Session(asyncore.dispatcher):
     def on_unhandled_message(self, msg_id, msg_data):
         logger.warning("unhandled message '%s' from %s:%d", msg_id, self.addr[0], self.addr[1])
 
-    def send_message(self, msg_id, msg_data=None):
+    def send_message(self, msg_id, msg_data=binary_type()):
         if self._error.has_error() or self._force_close_time > 0:
             return False
 
-        byte_msg = self.encode_message_to_bytes(msg_id, msg_data)
-        length = struct.calcsize(self.__class__.message_size_pack_format) + len(byte_msg)
+        byte_msg = self.message_packer.pack(msg_id, msg_data)
+        length = struct.calcsize(self.__class__.message_packer.size_fmt) + len(byte_msg)
 
         if length > self.__class__.max_message_size:
             raise MessageSizeOverflowError(msg_id, length, self.__class__.max_message_size)
 
-        self._out_buffer += struct.pack(self.__class__.message_size_pack_format, length)
+        self._out_buffer += struct.pack(self.__class__.message_packer.size_fmt, length)
         self._out_buffer += byte_msg
         return True
-
-    def encode_message_to_bytes(self, msg_id, msg_data):
-        return pickle.dumps((msg_id, msg_data))
-
-    def decode_message_from_bytes(self, bytes):
-        return pickle.loads(bytes)
 
     def _unpack_and_handle_messages(self):
         while True:
@@ -456,11 +492,11 @@ class _Session(asyncore.dispatcher):
     # 0: retry
     # -1: error
     def _unpack_message(self):
-        size_length = struct.calcsize(self.__class__.message_size_pack_format)
+        size_length = struct.calcsize(self.__class__.message_packer.size_fmt)
         buff_length = len(self._in_buffer)
         if buff_length < size_length:
             return 0
-        length = struct.unpack_from(self.__class__.message_size_pack_format, self._in_buffer)[0]
+        length = struct.unpack_from(self.__class__.message_packer.size_fmt, self._in_buffer)[0]
         if length < size_length or length > self.__class__.max_message_size:
             logger.error('invalid message size from %s:%d, size=%d max_size=%d', self.addr[0], self.addr[1], length, self.__class__.max_message_size)
             self._error.set_error(Error.ERROR_UNPACK_INVALID_MESSAGE_SIZE)
@@ -470,7 +506,7 @@ class _Session(asyncore.dispatcher):
         byte_msg = self._in_buffer[size_length:length]
 
         try:
-            pair = self.decode_message_from_bytes(byte_msg)
+            pair = self.message_packer.unpack(byte_msg)
         except:
             self._error.set_error(Error.ERROR_UNPACK_DECODE_MESSAGE)
             return -1
@@ -492,10 +528,10 @@ class _Session(asyncore.dispatcher):
                 self.send__system_keep_alive_req()
 
     def send__system_keep_alive_req(self):
-        self.send_message(self.__class__.message_id_system_keep_alive_req, None)
+        self.send_message(self.__class__.message_id_system_keep_alive_req)
 
     def send__system_keep_alive_ack(self):
-        self.send_message(self.__class__.message_id_system_keep_alive_ack, None)
+        self.send_message(self.__class__.message_id_system_keep_alive_ack)
 
     def on__system_keep_alive_req(self, msg_id, msg_data):
         self.send__system_keep_alive_ack()
