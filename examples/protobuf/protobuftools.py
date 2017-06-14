@@ -15,25 +15,23 @@ def protobuf_handler_config(msg_id, msg_cls=None):
     return wrapper
 
 
-class SessionS(asynmsg.SessionS):
-    def encode_message_to_bytes(self, msg_id, msg_data):
+class MessagePacker(asynmsg.MessagePacker):
+    def __init__(self):
+        super(MessagePacker, self).__init__()
+
+    def pack(self, msg_id, msg_data):
         bytes = struct.pack('H', msg_id)
         if msg_data is not None:
             bytes += msg_data.SerializeToString()
         return bytes
 
-    def decode_message_from_bytes(self, bytes):
+    def unpack(self, bytes):
         msg_id = struct.unpack_from('H', bytes[:struct.calcsize('H')])[0]
         return (msg_id, bytes[struct.calcsize('H'):])
+
+class SessionS(asynmsg.SessionS):
+    message_packer = MessagePacker()
 
 
 class SessionC(asynmsg.SessionC):
-    def encode_message_to_bytes(self, msg_id, msg_data):
-        bytes = struct.pack('H', msg_id)
-        if msg_data is not None:
-            bytes += msg_data.SerializeToString()
-        return bytes
-
-    def decode_message_from_bytes(self, bytes):
-        msg_id = struct.unpack_from('H', bytes[:struct.calcsize('H')])[0]
-        return (msg_id, bytes[struct.calcsize('H'):])
+    message_packer = MessagePacker()
