@@ -11,9 +11,9 @@ import asyncore
 PY2 = sys.version_info[0] == 2
 PY3 = sys.version_info[0] == 3
 if PY3:
-    binary_type = bytearray
+    BinaryType = bytearray
 elif PY2:
-    binary_type = str
+    BinaryType = str
 else:
     raise RuntimeError('Unsupported python version.')
 
@@ -24,7 +24,6 @@ except ImportError:
 
 __version__ = '0.1.14'
 __all__ = [
-    "SessionKeepAliveParams",
     "Error",
     "SessionS",
     "SessionC",
@@ -39,6 +38,8 @@ __all__ = [
     "MessageSizeOverflowError",
     "with_message_handler_config",
     "message_handler_config",
+    "SessionKeepAliveParams",
+    "MessagePacker", "MessagePacker_Pickle", "MessagePacker_Struct",
 ]
 
 
@@ -345,8 +346,8 @@ class _Session(asyncore.dispatcher):
         self.socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, not self.__class__.enable_nagle_algorithm)
         self._error = Error()
 
-        self._in_buffer = binary_type()
-        self._out_buffer = binary_type()
+        self._in_buffer = BinaryType()
+        self._out_buffer = BinaryType()
 
         self._last_read_time = time.clock()
         self._keep_alive_probe_count = 0
@@ -454,7 +455,7 @@ class _Session(asyncore.dispatcher):
     def on_unhandled_message(self, msg_id, msg_data):
         logger.warning("unhandled message '%s' from %s:%d", msg_id, self.addr[0], self.addr[1])
 
-    def send_message(self, msg_id, msg_data=binary_type()):
+    def send_message(self, msg_id, msg_data=BinaryType()):
         if self._error.has_error() or self._force_close_time > 0:
             return False
 
