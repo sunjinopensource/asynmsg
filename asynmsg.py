@@ -252,8 +252,8 @@ def with_message_handler_config(cls):
         if hasattr(func,'_message_handler_index'):
             order_map[func._message_handler_index] = func
 
-	# keys can't sort in python 3(the type is dict_keys)
-	# so we first transform it to a list
+    # keys can't sort in python 3(the type is dict_keys)
+    # so we first transform it to a list
     keys = order_map.keys()
     sort_keys = list(keys)
     sort_keys.sort()
