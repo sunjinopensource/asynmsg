@@ -333,8 +333,8 @@ class message_handler_config:
 
 
 class _Session(asyncore.dispatcher):
-    keep_alive_params = SessionKeepAliveParams()  # set None to disable
     message_packer = MessagePacker_Pickle()
+    keep_alive_params = SessionKeepAliveParams()  # set None to disable
     max_message_size = 16 * 1024
     max_send_size_once = 16 * 1024
     max_recv_size_once = 16 * 1024
