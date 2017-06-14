@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.15
++ MessagePacker
+message_id_system_keep_alive_req, message_id_system_keep_alive_ack move to SessionKeepAliveParams
+
 ## 0.1.14
 + message_id_system_keep_alive_req, message_id_system_keep_alive_ack
 
