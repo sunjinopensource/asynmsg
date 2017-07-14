@@ -706,7 +706,7 @@ class SessionC(_Session):
         logger.info('close connection to %s:%d (%s)', self.addr[0], self.addr[1], str(self._error))
 
 
-class ClientBlockConnect:
+class Client:
     session_class = SessionC
     only_stop_self_when_tick_error = False
 
@@ -826,7 +826,7 @@ class ClientBlockConnect:
         self.on_session_closed(session)
 
 
-class Client(AsynMsgDispatcher):
+class ClientInfinite(AsynMsgDispatcher):
     session_class = SessionC
     only_stop_self_when_tick_error = False
 
