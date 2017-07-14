@@ -432,7 +432,7 @@ class _Session(asyncore.dispatcher):
         if self._error.has_error():
             return
 
-        data = self.recv(self.__class__.max_recv_size_once)
+        data = self.recv(self.__class__.max_recv_size_once)  # may handle_close inside
         if data:
             self._in_buffer += data
             self._last_read_time = time.clock()
@@ -451,7 +451,7 @@ class _Session(asyncore.dispatcher):
             return
 
         self._error.set_error(Error.ERROR_REMOTE_CLOSED)
-    """ >>> """
+    """ >>> asyncore.dispatcher interfaces """
 
     def handle_message(self, msg_id, msg_data):
         handler = self.__class__._command_factory.get(msg_id)
@@ -593,7 +593,7 @@ class Server(asyncore.dispatcher):
         if self._error.has_error():  # by dispatcher
             return False
 
-        for session in list(self._session_map.values()):
+        for session in list(self._session_map.values()):  # make a list copy in case: session remove from map by _close_session
             if session.get_error().has_error():
                 self._close_session(session)
 
@@ -776,11 +776,16 @@ class Client(asyncore.dispatcher):
 
     def _open_session(self, sock, address):
         session = self.__class__.session_class(sock, address)
+
         if not self.check_session_open(session):
             session.del_channel()
             return False
+
+        #{ build link
         session._manage_owner = self
         self._session = session
+        #}
+
         self.on_session_opened(session)
         return True
 
@@ -794,10 +799,16 @@ class Client(asyncore.dispatcher):
         self.on_session_closed(session)
 
     def handle_connect(self):
-        self.del_channel()
+        self.del_channel()  # the concrete session will add_channel
         if not self._open_session(self.socket, self.addr):
             self._error.set_error(Error.ERROR_CONNECT_OPEN)
             return
+
+    def handle_read(self):
+        return  # the concrete session will handle_read
+
+    def handle_write(self):
+        return  # the concrete session will handle_write
 
     def handle_close(self):
         self._error.set_error(Error.ERROR_CONNECT_REFUSED)
