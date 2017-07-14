@@ -1,7 +1,9 @@
+syntax = "proto3";
 package Main;
 
 enum IDEnum
 {
+    ID_PLACEHOLDER = 0;
 	ID_Login = 1;
 	ID_LoginAck = 2;
 	ID_Ping = 3;
@@ -10,20 +12,20 @@ enum IDEnum
 
 message Login
 {
-	required int32 client_number = 1;
+	int32 client_number = 1;
 }
 
 message LoginAck
 {
-	required string result = 1;
+	string result = 1;
 }
 
 message Ping
 {
-    required int32 data = 1;
+    int32 data = 1;
 }
 
 message Pong
 {
-	required int32 data = 1;
+	int32 data = 1;
 }
