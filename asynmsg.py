@@ -446,7 +446,7 @@ class _Session(asyncore.dispatcher):
         if num > 0:
             self._out_buffer = self._out_buffer[num:]
 
-    def handle_close(self):
+    def handle_close(self):  # use set_error if want to close manually
         if self._error.has_error():
             return
 
@@ -659,7 +659,7 @@ class Server(asyncore.dispatcher):
     def _clear_sessions(self):
         for session in list(self._session_map.values()):
             self._close_session(session)
-        self._session_map.clear()
+        assert len(self._session_map) == 0  #self._session_map.clear()
 
     def _open_session(self, sock, address):
         session = self.__class__.session_class(sock, address)
