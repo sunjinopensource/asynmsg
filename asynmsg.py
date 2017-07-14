@@ -457,7 +457,7 @@ class _Session(AsynMsgDispatcher):
             return
 
         self._error.set_error(Error.ERROR_REMOTE_CLOSED)
-    """ >>> asyncore.dispatcher interfaces """
+    """ asyncore.dispatcher interfaces >>> """
 
     def handle_message(self, msg_id, msg_data):
         handler = self.__class__._command_factory.get(msg_id)
@@ -630,7 +630,7 @@ class Server(AsynMsgDispatcher):
 
     def handle_close(self):
         self._error.set_error(Error.ERROR_SELECT)
-    """ >>> """
+    """ asyncore.dispatcher interfaces >>> """
 
     def get_error(self):
         return self._error
@@ -960,6 +960,13 @@ class ClientInfinite(AsynMsgDispatcher):
         session.close()
         self.on_session_closed(session)
 
+    """ <<< asyncore.dispatcher interfaces """
+    def log(self, message):
+        _wrapper_asyncore_log(message, 'info')
+
+    def log_info(self, message, type='info'):
+        _wrapper_asyncore_log(message, type)
+
     def handle_connect(self):
         #{ detach socket and forward to session
         self.del_channel()
@@ -981,9 +988,6 @@ class ClientInfinite(AsynMsgDispatcher):
         self.log_info('connect failure %d', self.socket.getsockopt(socket.SOL_SOCKET, socket.SO_ERROR))
         self.close()
         self.wait_retry()
+    """ asyncore.dispatcher interfaces >>> """
 
-    def log(self, message):
-        _wrapper_asyncore_log(message, 'info')
 
-    def log_info(self, message, type='info'):
-        _wrapper_asyncore_log(message, type)
