@@ -49,14 +49,14 @@ def _str_system_error(code):
 
 def _connect_with_timeout(sock, address, timeout):
     sock.setblocking(False)
-    end_time = time.clock() + timeout
+    end_time = time.time() + timeout
 
     while True:
         time.sleep(0.001)
         code = sock.connect_ex(address)
         if code in (errno.EINPROGRESS, errno.EALREADY, errno.EWOULDBLOCK) \
                 or (code == errno.WSAEINVAL and os.name in ('nt', 'ce')):
-            if end_time < time.clock():
+            if end_time < time.time():
                 return 1, None  # timeout
             else:
                 continue
@@ -363,7 +363,7 @@ class _Session(AsynMsgDispatcher):
         self._in_buffer = BinaryType()
         self._out_buffer = BinaryType()
 
-        self._last_read_time = time.clock()
+        self._last_read_time = time.time()
         self._keep_alive_probe_count = 0
 
         self._force_close_time = -1
@@ -377,7 +377,7 @@ class _Session(AsynMsgDispatcher):
     # close on no data to send or timeout, like linger
     # if force_wait_timeout is True, wait even if no data to send
     def force_close(self, timeout=5, force_wait_timeout=False):
-        self._force_close_time = time.clock() + timeout
+        self._force_close_time = time.time() + timeout
         self._force_wait_timeout = force_wait_timeout
 
     def get_manage_owner(self):
@@ -410,7 +410,7 @@ class _Session(AsynMsgDispatcher):
     def tick(self):
         if not self._error.has_error():
             if self._force_close_time > 0:
-                if (not self._force_wait_timeout and len(self._out_buffer) == 0) or self._force_close_time < time.clock():
+                if (not self._force_wait_timeout and len(self._out_buffer) == 0) or self._force_close_time < time.time():
                     self._error.set_error(Error.ERROR_FORCE_CLOSE)
 
         if not self._error.has_error():
@@ -441,7 +441,7 @@ class _Session(AsynMsgDispatcher):
         data = self.recv(self.__class__.max_recv_size_once)  # may handle_close inside
         if data:
             self._in_buffer += data
-            self._last_read_time = time.clock()
+            self._last_read_time = time.time()
             self._keep_alive_probe_count = 0
 
     def handle_write(self):
@@ -538,7 +538,7 @@ class _Session(AsynMsgDispatcher):
 
         check_time = self.__class__.keep_alive_params.idle_time + \
                      self._keep_alive_probe_count * self.__class__.keep_alive_params.interval
-        if time.clock() - self._last_read_time > check_time:
+        if time.time() - self._last_read_time > check_time:
             self._keep_alive_probe_count += 1
             if self._keep_alive_probe_count > self.__class__.keep_alive_params.probes:
                 self._error.set_error(Error.ERROR_KEEP_ALIVE_TIMEOUT)
