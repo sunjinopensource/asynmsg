@@ -575,9 +575,17 @@ class Server(AsynMsgDispatcher):
         self._next_serial = 0
         self._error = Error()
 
+        self._listen_address = ''
+
+    def set_listen_address(self, address):
+        self._listen_address = address
+
+    def start(self):
+        assert not self.is_started()
+
         self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
         self.set_reuse_addr()
-        self.bind(address)
+        self.bind(self._listen_address)
         self.listen(5)
 
         _runner_list.append(self)
@@ -837,9 +845,6 @@ class ClientInfinite(AsynMsgDispatcher):
         self._wait_retry_interval = 10
 
         self._connect_time = 0
-        self.do_wait_retry(0)
-
-        _runner_list.append(self)
 
     def set_connect_address(self, address):
         self._connect_address = address
@@ -847,21 +852,13 @@ class ClientInfinite(AsynMsgDispatcher):
     def set_wait_retry_interval(self, interval):
         self._wait_retry_interval = interval
 
-    def wait_retry(self, interval=None):
-        if interval is None:
-            interval = self._wait_retry_interval
-        self.log_info('try reconnect after %d seconds' % interval)
-        self.do_wait_retry(interval)
+    def start(self):
+        assert not self.is_started()
 
-    def do_wait_retry(self, interval):
-        """在interval秒后发起连接"""
-        self._connect_time = time.time() + interval
+        self.do_wait_retry(0)
+        _runner_list.append(self)
 
-    def do_connect(self):
-        """发起连接"""
-        assert self.socket is None
-        self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.connect(self._connect_address)  # may handle_connect inside
+        self._started = True
 
     def stop(self):
         if not self.is_started():
@@ -899,6 +896,23 @@ class ClientInfinite(AsynMsgDispatcher):
             self._session.tick()
 
         return True
+
+
+    def wait_retry(self, interval=None):
+        if interval is None:
+            interval = self._wait_retry_interval
+        self.log_info('try reconnect after %d seconds' % interval)
+        self.do_wait_retry(interval)
+
+    def do_wait_retry(self, interval):
+        """在interval秒后发起连接"""
+        self._connect_time = time.time() + interval
+
+    def do_connect(self):
+        """发起连接"""
+        assert self.socket is None
+        self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.connect(self._connect_address)  # may handle_connect inside
 
     def is_started(self):
         return self._started
