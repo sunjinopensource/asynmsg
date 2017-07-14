@@ -701,119 +701,6 @@ class SessionC(_Session):
         logger.info('close connection to %s:%d (%s)', self.addr[0], self.addr[1], str(self._error))
 
 
-class Client(asyncore.dispatcher):
-    session_class = SessionC
-    only_stop_self_when_tick_error = False
-
-    def __init__(self, address, timeout=5):
-        asyncore.dispatcher.__init__(self)
-        self._session = None
-        self._error = Error()
-
-        self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.connect(address)
-        self.connect_timeout_time = time.clock() + timeout
-
-        _runner_list.append(self)
-        self._started = True
-
-    def stop(self):
-        if not self.is_started():
-            return
-
-        _runner_list.remove(self)
-
-        if self._session is None:
-            self.close()
-        else:
-            self._close_session()
-
-        self._error.clear()
-        self._started = False
-
-    def tick(self):
-        assert self.is_started()
-
-        if self._error.has_error():
-            return False
-
-        if self._session is None and self.connect_timeout_time < time.clock():
-            self._error.set_error(Error.ERROR_CONNECT_TIMEOUT)
-            return False
-
-        if self._session is not None:
-            if self._session.get_error().has_error():
-                self._error.copy(self._session.get_error())
-                return False
-
-            self._session.tick()
-
-        return True
-
-    def is_started(self):
-        return self._started
-
-    def get_error(self):
-        return self._error
-
-    def get_session(self):
-        return self._session
-
-    def get_ready_session(self):
-        return self._session if (self._session is not None and self._session.is_ready()) else None
-
-    def check_session_open(self, session):
-        return session.check_open()
-
-    def on_session_opened(self, session):
-        session.on_opened()
-
-    def on_session_closing(self, session):
-        session.on_closing()
-
-    def on_session_closed(self, session):
-        session.on_closed()
-
-    def _open_session(self, sock, address):
-        session = self.__class__.session_class(sock, address)
-
-        if not self.check_session_open(session):
-            session.del_channel()
-            return False
-
-        #{ build link
-        session._manage_owner = self
-        self._session = session
-        #}
-
-        self.on_session_opened(session)
-        return True
-
-    def _close_session(self):
-        session = self._session
-
-        self.on_session_closing(session)
-        self._session = None
-        session._manage_owner = None
-        session.close()
-        self.on_session_closed(session)
-
-    def handle_connect(self):
-        self.del_channel()  # the concrete session will add_channel
-        if not self._open_session(self.socket, self.addr):
-            self._error.set_error(Error.ERROR_CONNECT_OPEN)
-            return
-
-    def handle_read(self):
-        return  # the concrete session will handle_read
-
-    def handle_write(self):
-        return  # the concrete session will handle_write
-
-    def handle_close(self):
-        self._error.set_error(Error.ERROR_CONNECT_REFUSED)
-
-
 class ClientBlockConnect:
     session_class = SessionC
     only_stop_self_when_tick_error = False
@@ -932,3 +819,116 @@ class ClientBlockConnect:
 
         session.close()
         self.on_session_closed(session)
+
+
+class Client(asyncore.dispatcher):
+    session_class = SessionC
+    only_stop_self_when_tick_error = False
+
+    def __init__(self, address, timeout=5):
+        asyncore.dispatcher.__init__(self)
+        self._session = None
+        self._error = Error()
+
+        self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.connect(address)
+        self.connect_timeout_time = time.clock() + timeout
+
+        _runner_list.append(self)
+        self._started = True
+
+    def stop(self):
+        if not self.is_started():
+            return
+
+        _runner_list.remove(self)
+
+        if self._session is None:
+            self.close()
+        else:
+            self._close_session()
+
+        self._error.clear()
+        self._started = False
+
+    def tick(self):
+        assert self.is_started()
+
+        if self._error.has_error():
+            return False
+
+        if self._session is None and self.connect_timeout_time < time.clock():
+            self._error.set_error(Error.ERROR_CONNECT_TIMEOUT)
+            return False
+
+        if self._session is not None:
+            if self._session.get_error().has_error():
+                self._error.copy(self._session.get_error())
+                return False
+
+            self._session.tick()
+
+        return True
+
+    def is_started(self):
+        return self._started
+
+    def get_error(self):
+        return self._error
+
+    def get_session(self):
+        return self._session
+
+    def get_ready_session(self):
+        return self._session if (self._session is not None and self._session.is_ready()) else None
+
+    def check_session_open(self, session):
+        return session.check_open()
+
+    def on_session_opened(self, session):
+        session.on_opened()
+
+    def on_session_closing(self, session):
+        session.on_closing()
+
+    def on_session_closed(self, session):
+        session.on_closed()
+
+    def _open_session(self, sock, address):
+        session = self.__class__.session_class(sock, address)
+
+        if not self.check_session_open(session):
+            session.del_channel()
+            return False
+
+        #{ build link
+        session._manage_owner = self
+        self._session = session
+        #}
+
+        self.on_session_opened(session)
+        return True
+
+    def _close_session(self):
+        session = self._session
+
+        self.on_session_closing(session)
+        self._session = None
+        session._manage_owner = None
+        session.close()
+        self.on_session_closed(session)
+
+    def handle_connect(self):
+        self.del_channel()  # the concrete session will add_channel
+        if not self._open_session(self.socket, self.addr):
+            self._error.set_error(Error.ERROR_CONNECT_OPEN)
+            return
+
+    def handle_read(self):
+        return  # the concrete session will handle_read
+
+    def handle_write(self):
+        return  # the concrete session will handle_write
+
+    def handle_close(self):
+        self._error.set_error(Error.ERROR_CONNECT_REFUSED)
