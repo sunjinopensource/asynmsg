@@ -612,12 +612,7 @@ class Server(asyncore.dispatcher):
     def log_info(self, message, type='info'):
         _wrapper_asyncore_log(message, type)
 
-    def handle_accept(self):
-        pair = self.accept()
-        if pair is None:
-            return
-        sock, address = pair
-
+    def handle_accepted(self, sock, address):
         if not self._open_session(sock, address):
             sock.close()
 
