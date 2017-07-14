@@ -825,17 +825,40 @@ class Client(asyncore.dispatcher):
     session_class = SessionC
     only_stop_self_when_tick_error = False
 
-    def __init__(self, address, timeout=5):
+    def __init__(self):
         asyncore.dispatcher.__init__(self)
+        self._started = True
         self._session = None
-        self._error = Error()
 
-        self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.connect(address)
-        self.connect_timeout_time = time.clock() + timeout
+        self._connect_address = ''
+        self._wait_retry_interval = 10
+
+        self._connect_time = 0
+        self.wait_retry(0)
 
         _runner_list.append(self)
-        self._started = True
+
+    def set_connect_address(self, address):
+        self._connect_address = address
+
+    def set_wait_retry_interval(self, interval):
+        self._wait_retry_interval = interval
+
+    def wait_retry(self, interval=None):
+        """在interval秒后发起连接"""
+        if interval is None:
+            interval = self._wait_retry_interval
+
+        self.log_info('try reconnect after %d seconds' % interval)
+        self._connect_time = time.time() + interval
+
+    def do_connect(self):
+        """发起连接"""
+        self.log_info('start connect')
+
+        assert self.socket is None
+        self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.connect(self._connect_address)  # may handle_connect inside
 
     def stop(self):
         if not self.is_started():
@@ -848,33 +871,33 @@ class Client(asyncore.dispatcher):
         else:
             self._close_session()
 
-        self._error.clear()
         self._started = False
 
     def tick(self):
         assert self.is_started()
 
-        if self._error.has_error():
-            return False
-
-        if self._session is None and self.connect_timeout_time < time.clock():
-            self._error.set_error(Error.ERROR_CONNECT_TIMEOUT)
-            return False
+        if self._session is None:
+            if self.socket is None:
+                if self._connect_time < time.time():
+                    self.do_connect()
+                else:
+                    pass # 等待发起下次连接
+            else:
+                pass # 正在连接
+        else:
+            pass # 已经连接
 
         if self._session is not None:
             if self._session.get_error().has_error():
-                self._error.copy(self._session.get_error())
-                return False
+                self._close_session()
 
+        if self._session is not None:
             self._session.tick()
 
         return True
 
     def is_started(self):
         return self._started
-
-    def get_error(self):
-        return self._error
 
     def get_session(self):
         return self._session
@@ -893,12 +916,13 @@ class Client(asyncore.dispatcher):
 
     def on_session_closed(self, session):
         session.on_closed()
+        self.wait_retry()
 
     def _open_session(self, sock, address):
         session = self.__class__.session_class(sock, address)
 
         if not self.check_session_open(session):
-            session.del_channel()
+            session.close()
             return False
 
         #{ build link
@@ -919,9 +943,14 @@ class Client(asyncore.dispatcher):
         self.on_session_closed(session)
 
     def handle_connect(self):
-        self.del_channel()  # the concrete session will add_channel
-        if not self._open_session(self.socket, self.addr):
-            self._error.set_error(Error.ERROR_CONNECT_OPEN)
+        #{ detach socket and forward to session
+        self.del_channel()
+        sock = self.socket
+        self.socket = None
+        #}
+
+        if not self._open_session(sock, self.addr):
+            self.wait_retry()
             return
 
     def handle_read(self):
@@ -930,5 +959,8 @@ class Client(asyncore.dispatcher):
     def handle_write(self):
         return  # the concrete session will handle_write
 
-    def handle_close(self):
-        self._error.set_error(Error.ERROR_CONNECT_REFUSED)
+    def log(self, message):
+        _wrapper_asyncore_log(message, 'info')
+
+    def log_info(self, message, type='info'):
+        _wrapper_asyncore_log(message, type)
