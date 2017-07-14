@@ -332,7 +332,13 @@ class message_handler_config:
         return func
 
 
-class _Session(asyncore.dispatcher):
+class AsynMsgDispatcher(asyncore.dispatcher):
+    def close(self):
+        self.close()
+        self.socket = None
+
+
+class _Session(AsynMsgDispatcher):
     message_packer = MessagePacker_Pickle()
     keep_alive_params = SessionKeepAliveParams()  # set None to disable
     max_message_size = 16 * 1024
@@ -347,7 +353,7 @@ class _Session(asyncore.dispatcher):
         cls._command_factory[cmd] = handler
 
     def __init__(self, sock, address):
-        asyncore.dispatcher.__init__(self, sock)
+        AsynMsgDispatcher.__init__(self, sock)
 
         self._manage_owner = None
 
@@ -366,7 +372,7 @@ class _Session(asyncore.dispatcher):
         self._ready = True
 
     def close(self):
-        asyncore.dispatcher.close(self)
+        AsynMsgDispatcher.close(self)
 
     # close on no data to send or timeout, like linger
     # if force_wait_timeout is True, wait even if no data to send
@@ -559,12 +565,12 @@ class SessionS(_Session):
         logger.info('close connection from %s:%d (%s)', self.addr[0], self.addr[1], str(self._error))
 
 
-class Server(asyncore.dispatcher):
+class Server(AsynMsgDispatcher):
     session_class = SessionS
     only_stop_self_when_tick_error = False
 
     def __init__(self, address):
-        asyncore.dispatcher.__init__(self)
+        AsynMsgDispatcher.__init__(self)
         self._session_map = {}
         self._next_serial = 0
         self._error = Error()
@@ -585,7 +591,6 @@ class Server(asyncore.dispatcher):
         self._clear_sessions()
         self._error.clear()
         self.close()
-        self.socket = None
 
     def tick(self):
         assert self.is_started()
@@ -821,12 +826,12 @@ class ClientBlockConnect:
         self.on_session_closed(session)
 
 
-class Client(asyncore.dispatcher):
+class Client(AsynMsgDispatcher):
     session_class = SessionC
     only_stop_self_when_tick_error = False
 
     def __init__(self):
-        asyncore.dispatcher.__init__(self)
+        AsynMsgDispatcher.__init__(self)
         self._started = True
         self._session = None
 
