@@ -25,19 +25,13 @@ except ImportError:
 __version__ = '0.1.15'
 __all__ = [
     "Error",
-    "SessionS",
-    "SessionC",
-    "Server",
-    "Client",
-    "ClientBlockConnect",
-    "run_once",
-    "run_forever",
+    "SessionS", "SessionC",
+    "Server", "Client", "ClientInfinite",
+    "run_once", "run_forever",
     "Sleep",
     "logger",
-    "AsynMsgException",
-    "MessageSizeOverflowError",
-    "with_message_handler_config",
-    "message_handler_config",
+    "AsynMsgException", "MessageSizeOverflowError",
+    "with_message_handler_config", "message_handler_config",
     "SessionKeepAliveParams",
     "MessagePacker", "MessagePacker_Pickle", "MessagePacker_Struct",
 ]
@@ -150,18 +144,18 @@ def run_forever(runner_list=None, extra_tick=Sleep(0.001), use_poll=False, auto_
 
 class Error:
     ERROR_OK = 0
-    ERROR_SELECT = 1
-    ERROR_REMOTE_CLOSED = 2
-    ERROR_FORCE_CLOSE = 3
-    ERROR_KEEP_ALIVE_TIMEOUT = 4
-    ERROR_UNPACK_INVALID_MESSAGE_SIZE = 5
-    ERROR_UNPACK_DECODE_MESSAGE = 6
-    ERROR_RECV_MESSAGE_FORMAT = 7
-    ERROR_HANDLE_MESSAGE = 8
-    ERROR_CONNECT_SYSTEM = 9
-    ERROR_CONNECT_TIMEOUT = 10
-    ERROR_CONNECT_OPEN = 11
-    ERROR_CONNECT_REFUSED = 12
+    ERROR_SELECT = -1
+    ERROR_REMOTE_CLOSED = -2
+    ERROR_FORCE_CLOSE = -3
+    ERROR_KEEP_ALIVE_TIMEOUT = -4
+    ERROR_UNPACK_INVALID_MESSAGE_SIZE = -5
+    ERROR_UNPACK_DECODE_MESSAGE = -6
+    ERROR_RECV_MESSAGE_FORMAT = -7
+    ERROR_HANDLE_MESSAGE = -8
+    ERROR_CONNECT_SYSTEM = -9
+    ERROR_CONNECT_TIMEOUT = -10
+    ERROR_CONNECT_OPEN = -11
+    ERROR_CONNECT_REFUSED = -12
 
     BASE_STR_ERROR_MAP = {
         ERROR_OK: 'ERROR_OK',
@@ -559,17 +553,19 @@ class SessionS(_Session):
         return self._serial
 
     def on_opened(self):
-        logger.info('open connection from %s:%d', self.addr[0], self.addr[1])
+        local_addr = self.socket.getsockname()
+        logger.info('%s(%d)(%s:%d,%s:%d) open' % (self.__class__.__name__, self.get_serial(), local_addr[0], local_addr[1], self.addr[0], self.addr[1]))
 
     def on_closing(self):
-        logger.info('close connection from %s:%d (%s)', self.addr[0], self.addr[1], str(self._error))
+        local_addr = self.socket.getsockname()
+        logger.info('%s(%d)(%s:%d,%s:%d) close, error(%s)' % (self.__class__.__name__, self.get_serial(), local_addr[0], local_addr[1], self.addr[0], self.addr[1], self._error))
 
 
 class Server(AsynMsgDispatcher):
     session_class = SessionS
     only_stop_self_when_tick_error = False
 
-    def __init__(self, address):
+    def __init__(self):
         AsynMsgDispatcher.__init__(self)
         self._session_map = {}
         self._next_serial = 0
@@ -590,9 +586,13 @@ class Server(AsynMsgDispatcher):
 
         _runner_list.append(self)
 
+        self.log_info('%s(%s:%d) start listening...' % (self.__class__.__name__, self._listen_address[0], self._listen_address[1]))
+
     def stop(self):
         if not self.is_started():
             return
+
+        self.log_info('%s(%s:%d) stop listening' % (self.__class__.__name__, self._listen_address[0], self._listen_address[1]))
 
         _runner_list.remove(self)
 
@@ -707,10 +707,12 @@ class SessionC(_Session):
         _Session.__init__(self, sock, address)
 
     def on_opened(self):
-        logger.info('open connection to %s:%d', self.addr[0], self.addr[1])
+        local_addr = self.socket.getsockname()
+        logger.info('%s(%s:%d,%s:%d) connected' % (self.__class__.__name__, local_addr[0], local_addr[1], self.addr[0], self.addr[1]))
 
     def on_closing(self):
-        logger.info('close connection to %s:%d (%s)', self.addr[0], self.addr[1], str(self._error))
+        local_addr = self.socket.getsockname()
+        logger.info('%s(%s:%d,%s:%d) disconnect, error(%s)' % (self.__class__.__name__, local_addr[0], local_addr[1], self.addr[0], self.addr[1], self._error))
 
 
 class Client:
@@ -731,9 +733,7 @@ class Client:
     def set_connect_timeout(self, timeout):
         self._connect_timeout = timeout
 
-    def start(self):
-        assert not self.is_started()
-
+    def _do_connect(self):
         sock = socket.socket()
         code, err = _connect_with_timeout(sock, self._connect_address, self._connect_timeout)
 
@@ -749,6 +749,16 @@ class Client:
 
         if not self._open_session(sock, self._connect_address):
             self._error.set_error(Error.ERROR_CONNECT_OPEN)
+            return False
+
+        return True
+
+    def start(self):
+        assert not self.is_started()
+
+        self.log_info('%s(%s:%d) start connecting...' % (self.__class__.__name__, self._connect_address[0], self._connect_address[1]))
+        if not self._do_connect():
+            self.log_info('%s(%s:%d) connect failure(%s)' % (self.__class__.__name__, self._connect_address[0], self._connect_address[1], self._error))
             return False
 
         _runner_list.append(self)
@@ -831,6 +841,11 @@ class Client:
         session.close()
         self.on_session_closed(session)
 
+    def log(self, message):
+        _wrapper_asyncore_log(message, 'info')
+
+    def log_info(self, message, type='info'):
+        _wrapper_asyncore_log(message, type)
 
 class ClientInfinite(AsynMsgDispatcher):
     session_class = SessionC
@@ -838,7 +853,7 @@ class ClientInfinite(AsynMsgDispatcher):
 
     def __init__(self):
         AsynMsgDispatcher.__init__(self)
-        self._started = True
+        self._started = False
         self._session = None
 
         self._connect_address = ''
@@ -859,6 +874,7 @@ class ClientInfinite(AsynMsgDispatcher):
         _runner_list.append(self)
 
         self._started = True
+        return True
 
     def stop(self):
         if not self.is_started():
@@ -879,7 +895,7 @@ class ClientInfinite(AsynMsgDispatcher):
         if self._session is None:
             if self.socket is None:
                 if self._connect_time < time.time():
-                    self.log_info('start connect')
+                    self.log_info('%s(%s:%d) start connecting...' % (self.__class__.__name__, self._connect_address[0], self._connect_address[1]))
                     self.do_connect()
                 else:
                     pass # 等待发起下次连接
@@ -901,7 +917,7 @@ class ClientInfinite(AsynMsgDispatcher):
     def wait_retry(self, interval=None):
         if interval is None:
             interval = self._wait_retry_interval
-        self.log_info('try reconnect after %d seconds' % interval)
+        self.log_info('%s(%s:%d) try reconnect after %d seconds' % (self.__class__.__name__, self._connect_address[0], self._connect_address[1], interval))
         self.do_wait_retry(interval)
 
     def do_wait_retry(self, interval):
@@ -985,9 +1001,8 @@ class ClientInfinite(AsynMsgDispatcher):
         return  # the concrete session will handle_write
 
     def handle_close(self):
-        self.log_info('connect failure %d', self.socket.getsockopt(socket.SOL_SOCKET, socket.SO_ERROR))
+        self.log_info('%s(%s:%d) connect failure, error(%s)' % (self.__class__.__name__, self._connect_address[0], self._connect_address[1],
+                                                                _str_system_error(self.socket.getsockopt(socket.SOL_SOCKET, socket.SO_ERROR))))
         self.close()
         self.wait_retry()
     """ asyncore.dispatcher interfaces >>> """
-
-
