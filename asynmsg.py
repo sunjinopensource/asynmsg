@@ -663,20 +663,29 @@ class Server(asyncore.dispatcher):
 
     def _open_session(self, sock, address):
         session = self.__class__.session_class(sock, address)
+
         if not self.check_session_open(session):
             session.del_channel()
             return False
+
+        #{ build link
         session._manage_owner = self
         session._serial = self._next_serial
         self._next_serial += 1
         self._session_map[session.get_serial()] = session
+        #}
+
         self.on_session_opened(session)
         return True
 
     def _close_session(self, session):
         self.on_session_closing(session)
+
+        #{ break link
         del self._session_map[session.get_serial()]
         session._manage_owner = None
+        #}
+
         session.close()
         self.on_session_closed(session)
 
