@@ -618,8 +618,7 @@ class Server(AsynMsgDispatcher):
         _wrapper_asyncore_log(message, type)
 
     def handle_accepted(self, sock, address):
-        if not self._open_session(sock, address):
-            sock.close()
+        self._open_session(sock, address)
 
     def handle_close(self):
         self._error.set_error(Error.ERROR_SELECT)
@@ -670,7 +669,7 @@ class Server(AsynMsgDispatcher):
         session = self.__class__.session_class(sock, address)
 
         if not self.check_session_open(session):
-            session.del_channel()
+            session.close()
             return False
 
         #{ build link
@@ -742,7 +741,6 @@ class Client:
 
         if not self._open_session(sock, self._connect_address):
             self._error.set_error(Error.ERROR_CONNECT_OPEN)
-            sock.close()
             return False
 
         _runner_list.append(self)
@@ -801,7 +799,7 @@ class Client:
         session = self.__class__.session_class(sock, address)
 
         if not self.check_session_open(session):
-            session.del_channel()
+            session.close()
             return False
 
         #{ build link
