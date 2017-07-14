@@ -46,15 +46,15 @@ class ClientSession(asynmsg.SessionC):
         self.send_message('Ping', value)
 
 
-class Client(asynmsg.ClientBlockConnect):
+class Client(asynmsg.ClientInfinite):
     session_class = ClientSession
 
 
 def main():
     logging.info("========= client %d started =========", client_number)
-    client = Client(('127.0.0.1', 12345))
-    if not client.is_started():
-        logging.error('failed to connect server: %s', str(client.get_error()))
+    client = Client()
+    client.set_connect_address(('127.0.0.1', 12345))
+    if not client.start():
         return
     asynmsg.run_forever()
 
