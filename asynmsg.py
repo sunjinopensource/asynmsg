@@ -334,7 +334,7 @@ class message_handler_config:
 
 class AsynMsgDispatcher(asyncore.dispatcher):
     def close(self):
-        self.close()
+        asyncore.dispatcher.close(self)
         self.socket = None
 
 
@@ -839,7 +839,7 @@ class Client(AsynMsgDispatcher):
         self._wait_retry_interval = 10
 
         self._connect_time = 0
-        self.wait_retry(0)
+        self.do_wait_retry(0)
 
         _runner_list.append(self)
 
@@ -850,17 +850,17 @@ class Client(AsynMsgDispatcher):
         self._wait_retry_interval = interval
 
     def wait_retry(self, interval=None):
-        """在interval秒后发起连接"""
         if interval is None:
             interval = self._wait_retry_interval
-
         self.log_info('try reconnect after %d seconds' % interval)
+        self.do_wait_retry(interval)
+
+    def do_wait_retry(self, interval):
+        """在interval秒后发起连接"""
         self._connect_time = time.time() + interval
 
     def do_connect(self):
         """发起连接"""
-        self.log_info('start connect')
-
         assert self.socket is None
         self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
         self.connect(self._connect_address)  # may handle_connect inside
@@ -884,6 +884,7 @@ class Client(AsynMsgDispatcher):
         if self._session is None:
             if self.socket is None:
                 if self._connect_time < time.time():
+                    self.log_info('start connect')
                     self.do_connect()
                 else:
                     pass # 等待发起下次连接
@@ -963,6 +964,11 @@ class Client(AsynMsgDispatcher):
 
     def handle_write(self):
         return  # the concrete session will handle_write
+
+    def handle_close(self):
+        self.log_info('connect failure %d', self.socket.getsockopt(socket.SOL_SOCKET, socket.SO_ERROR))
+        self.close()
+        self.wait_retry()
 
     def log(self, message):
         _wrapper_asyncore_log(message, 'info')
