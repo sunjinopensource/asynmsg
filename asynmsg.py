@@ -96,6 +96,9 @@ _runner_list = []
 
 
 def _run_once(runner_list, extra_tick, use_poll):
+    """
+    :return True - success; False - extra_tick failure; runner object - the runner who tick failure
+    """
     if len(runner_list) > 0:
         asyncore.loop(0, use_poll, None, 1)
         for runner in runner_list:
@@ -109,6 +112,11 @@ def _run_once(runner_list, extra_tick, use_poll):
 
 
 def run_once(runner_list=None, extra_tick=Sleep(0.001), use_poll=False, auto_stop=True):
+    """
+    :param auto_stop when tick error occur, stop all runners, except:
+        if error was from a runner tick and the runner has set 'only_stop_self_when_tick_error' to True,
+        then only this runner stop
+    """
     if runner_list is None:
         runner_list = _runner_list
 
@@ -121,7 +129,7 @@ def run_once(runner_list=None, extra_tick=Sleep(0.001), use_poll=False, auto_sto
                 runner.stop()
         return False
     else:  # runner tick error
-        if code.only_stop_self_when_tick_error:
+        if hasattr(code, 'only_stop_self_when_tick_error') and code.only_stop_self_when_tick_error:
             if auto_stop:
                 code.stop()
             return True
