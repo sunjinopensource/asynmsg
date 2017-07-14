@@ -818,30 +818,37 @@ class ClientBlockConnect:
     session_class = SessionC
     only_stop_self_when_tick_error = False
 
-    def __init__(self, address, timeout=5):
+    def __init__(self):
         self._started = False
         self._session = None
         self._error = Error()
 
-        self._start(address, timeout)
+        self._connect_address = ''
+        self._connect_timeout = 5
 
-    def _start(self, address, timeout):
+    def set_connect_address(self, address):
+        self._connect_address = address
+
+    def set_connect_timeout(self, timeout):
+        self._connect_timeout = timeout
+
+    def start(self):
         assert not self.is_started()
 
         sock = socket.socket()
-        code, err = _connect_with_timeout(sock, address, timeout)
+        code, err = _connect_with_timeout(sock, self._connect_address, self._connect_timeout)
 
-        if code == -1:
+        if code == -1: # error
             self._error.set_error(Error.ERROR_CONNECT_SYSTEM, err)
             sock.close()
             return False
 
-        if code == 1:
+        if code == 1: # timeout
             self._error.set_error(Error.ERROR_CONNECT_TIMEOUT)
             sock.close()
             return False
 
-        if not self._open_session(sock, address):
+        if not self._open_session(sock, self._connect_address):
             self._error.set_error(Error.ERROR_CONNECT_OPEN)
             sock.close()
             return False
@@ -863,6 +870,10 @@ class ClientBlockConnect:
 
     def tick(self):
         assert self.is_started()
+
+        if self._error.has_error():
+            return False
+
         if self._session.get_error().has_error():
             self._error.copy(self._session.get_error())
             return False
@@ -896,11 +907,16 @@ class ClientBlockConnect:
 
     def _open_session(self, sock, address):
         session = self.__class__.session_class(sock, address)
+
         if not self.check_session_open(session):
             session.del_channel()
             return False
+
+        #{ build link
         session._manage_owner = self
         self._session = session
+        #}
+
         self.on_session_opened(session)
         return True
 
@@ -908,7 +924,11 @@ class ClientBlockConnect:
         session = self._session
 
         self.on_session_closing(session)
+
+        #{ break link
         self._session = None
         session._manage_owner = None
+        #}
+
         session.close()
         self.on_session_closed(session)
