@@ -27,7 +27,7 @@ class ServerSession(protobuftools.SessionS):
 
 		login_ack_data = main_pb2.LoginAck()
 		login_ack_data.result = 'login success with No.%d' % history_visited_count
-		self.send_message(main_pb2.ID_LoginAck, login_ack_data)
+		self.send_protobuf(main_pb2.ID_LoginAck, login_ack_data)
 
 	@protobuftools.protobuf_handler_config(main_pb2.ID_Ping, main_pb2.Ping)
 	def on_Ping(self, msg_id, msg_data):
@@ -35,7 +35,7 @@ class ServerSession(protobuftools.SessionS):
 
 		pong_data = main_pb2.Pong()
 		pong_data.data = msg_data.data
-		self.send_message(main_pb2.ID_Pong, pong_data)
+		self.send_protobuf(main_pb2.ID_Pong, pong_data)
 
 
 class Server(asynmsg.Server):

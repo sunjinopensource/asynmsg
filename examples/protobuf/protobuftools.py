@@ -22,16 +22,28 @@ class MessagePacker(asynmsg.MessagePacker):
     def pack(self, msg_id, msg_data):
         bytes = struct.pack('H', msg_id)
         if msg_data is not None:
-            bytes += msg_data.SerializeToString()
+            bytes += msg_data
         return bytes
 
-    def unpack(self, bytes):
-        msg_id = struct.unpack_from('H', bytes[:struct.calcsize('H')])[0]
-        return (msg_id, bytes[struct.calcsize('H'):])
+    def unpack(self, bytes_):
+        msg_id = struct.unpack_from('H', bytes_[:struct.calcsize('H')])[0]
+        return (msg_id, bytes(bytes_[struct.calcsize('H'):]))
 
 class SessionS(asynmsg.SessionS):
     message_packer = MessagePacker()
 
+    def send_protobuf(self, msg_id, msg_data):
+        if msg_data is None:
+            return self.send_message(msg_id, msg_data)
+        else:
+            return self.send_message(msg_id, msg_data.SerializeToString())
 
 class SessionC(asynmsg.SessionC):
     message_packer = MessagePacker()
+
+    def send_protobuf(self, msg_id, msg_data):
+        if msg_data is None:
+            return self.send_message(msg_id, msg_data)
+        else:
+            return self.send_message(msg_id, msg_data.SerializeToString())
+

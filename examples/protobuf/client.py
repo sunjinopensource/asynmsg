@@ -25,7 +25,7 @@ class ClientSession(protobuftools.SessionC):
 
         login_data = main_pb2.Login()
         login_data.client_number = client_number
-        self.send_message(main_pb2.ID_Login, login_data)
+        self.send_protobuf(main_pb2.ID_Login, login_data)
 
     @protobuftools.protobuf_handler_config(main_pb2.ID_LoginAck, main_pb2.LoginAck)
     def on_LoginAck(self, msg_id, msg_data):
@@ -50,7 +50,7 @@ class ClientSession(protobuftools.SessionC):
 
         ping_data = main_pb2.Ping()
         ping_data.data = value
-        self.send_message(main_pb2.ID_Ping, ping_data)
+        self.send_protobuf(main_pb2.ID_Ping, ping_data)
 
 
 class Client(asynmsg.ClientInfinite):
