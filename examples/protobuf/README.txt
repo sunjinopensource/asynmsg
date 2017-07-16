@@ -1,8 +1,10 @@
-[Before run example]
-1. pip3 install protobuf
+only test in py3
 
-[protobuf2]
-1. install protobuf2 by source: https://pypi.python.org/pypi/protobuf-py3
-2. modify protogen/main.proto
-syntax = "proto3"; ==> syntax = "proto2";
-3. run protogen.bat
+[require protobuf]
+pip3 install protobuf
+
+[generate proto2]
+protogen\protogen2.bat
+
+[generate proto3]
+protogen\protogen3.bat
