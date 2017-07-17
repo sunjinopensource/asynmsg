@@ -14,7 +14,9 @@ def protobuf_handler_config(msg_id, msg_cls=None):
                     proto_data.ParseFromString(msg_data)
 
             if self.has_netlog:
-                self.log_info('%s[RECV %04d] %s' % (self.get_low_level_desc(), msg_id, '' if proto_data is None else str(proto_data)))
+                self.log_info('%s[RECV %04d] %s=%s' % (self.get_low_level_desc(), msg_id,
+                                                       '' if proto_data is None else proto_data.__class__.__name__,
+                                                       '' if proto_data is None else str(proto_data)))
 
             return func(self, msg_id, proto_data)
         return wrapper2
@@ -38,7 +40,9 @@ class MessagePacker(asynmsg.MessagePacker):
 
 def _send_message(cls, self, msg_id, msg_data):
     if self.has_netlog:
-        self.log_info('%s[SEND %04d] %s' % (self.get_low_level_desc(), msg_id, '' if msg_data is None else str(msg_data)))
+        self.log_info('%s[SEND %04d] %s=%s' % (self.get_low_level_desc(), msg_id,
+                                            '' if msg_data is None else msg_data.__class__.__name__,
+                                            '' if msg_data is None else str(msg_data)))
 
     if msg_data is not None:
         if isinstance(msg_data, google.protobuf.message.Message):
