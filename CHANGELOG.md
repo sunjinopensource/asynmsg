@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.2.11
+fix with_message_handler_config for sub class
+
 ## 0.1.15
 + MessagePacker
 message_id_system_keep_alive_req, message_id_system_keep_alive_ack move to SessionKeepAliveParams
