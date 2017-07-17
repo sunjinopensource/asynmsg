@@ -58,3 +58,6 @@ target/
 
 # PyCharm
 .idea/
+
+# Project
+/examples/protobuf/main_pb2.py

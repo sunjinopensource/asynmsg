@@ -17,7 +17,7 @@ class ServerSession(asynmsg.SessionS):
         self.client_no = -1
 
     @asynmsg.message_handler_config('Login')
-    def on_Login(self, msg_id, msg_data):
+    def recv_Login(self, msg_id, msg_data):
         global history_visited_count
         history_visited_count += 1
         self.client_no = msg_data
@@ -25,7 +25,7 @@ class ServerSession(asynmsg.SessionS):
         self.send_message('LoginAck', 'login success with No.%d' % history_visited_count)
 
     @asynmsg.message_handler_config('Ping')
-    def on_Ping(self, msg_id, msg_data):
+    def recv_Ping(self, msg_id, msg_data):
         logging.info("client %-4d: recv Ping %-4s, send Pong", self.client_no, str(msg_data))
         self.send_message('Pong', msg_data)
 

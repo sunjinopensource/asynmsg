@@ -19,23 +19,23 @@ class ServerSession(protobuftools.SessionS):
 		self.client_no = -1
 
 	@protobuftools.protobuf_handler_config(main_pb2.ID_Login, main_pb2.Login)
-	def on_Login(self, msg_id, msg_data):
+	def recv_Login(self, msg_id, msg_data):
 		global history_visited_count
 		history_visited_count += 1
 		self.client_no = msg_data.client_number
-		logging.info("client %-4d: welcome, the No.%d guest", msg_data.client_number, history_visited_count)
+		#logging.info("client %-4d: welcome, the No.%d guest", msg_data.client_number, history_visited_count)
 
 		login_ack_data = main_pb2.LoginAck()
 		login_ack_data.result = 'login success with No.%d' % history_visited_count
-		self.send_protobuf(main_pb2.ID_LoginAck, login_ack_data)
+		self.send_message(main_pb2.ID_LoginAck, login_ack_data)
 
 	@protobuftools.protobuf_handler_config(main_pb2.ID_Ping, main_pb2.Ping)
-	def on_Ping(self, msg_id, msg_data):
-		logging.info("client %-4d: recv Ping %-4s, send Pong", self.client_no, str(msg_data.data))
+	def recv_Ping(self, msg_id, msg_data):
+		#logging.info("client %-4d: recv Ping %-4s, send Pong", self.client_no, str(msg_data.data))
 
 		pong_data = main_pb2.Pong()
 		pong_data.data = msg_data.data
-		self.send_protobuf(main_pb2.ID_Pong, pong_data)
+		self.send_message(main_pb2.ID_Pong, pong_data)
 
 
 class Server(asynmsg.Server):

@@ -24,12 +24,12 @@ class ClientSession(asynmsg.SessionC):
         self.send_message('Login', client_number)
 
     @asynmsg.message_handler_config('LoginAck')
-    def on_LoginAck(self, msg_id, msg_data):
+    def recv_LoginAck(self, msg_id, msg_data):
         logging.info("%s", msg_data)
-        self.send_ping()
+        self.send_Ping()
 
     @asynmsg.message_handler_config('Pong')
-    def on_Pong(self, msg_id, msg_data):
+    def recv_Pong(self, msg_id, msg_data):
         logging.info("recv Pong %-4s, send Ping after %d seconds", msg_data, ping_interval)
         self.ping_time = time.clock() + ping_interval
 
@@ -38,9 +38,9 @@ class ClientSession(asynmsg.SessionC):
 
         if self.ping_time > 0 and self.ping_time < time.clock():
             self.ping_time = -1
-            self.send_ping()
+            self.send_Ping()
 
-    def send_ping(self):
+    def send_Ping(self):
         value = random.randint(1, 10000)
         logging.info("send Ping %d", value)
         self.send_message('Ping', value)
