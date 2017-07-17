@@ -292,14 +292,17 @@ class MessagePacker_Struct(MessagePacker):
 
 
 def with_message_handler_config(cls):
-    cls._command_factory = {}
-    if cls.keep_alive_params is not None:
-        def _on_keep_alive_ping(self, msg_id, msg_data):
-            self.send_message(cls.keep_alive_params.pong_id)
-        def _on_keep_alive_pong(self, msg_id, msg_data):
-            pass
-        cls.register_command_handler(cls.keep_alive_params.ping_id, _on_keep_alive_ping)
-        cls.register_command_handler(cls.keep_alive_params.pong_id, _on_keep_alive_pong)
+    # cls hasattr _command_factory if derived from a class which defined with_message_handler_config
+    if not hasattr(cls, '_command_factory'):
+        cls._command_factory = {}
+
+        if cls.keep_alive_params is not None:
+            def _on_keep_alive_ping(self, msg_id, msg_data):
+                self.send_message(cls.keep_alive_params.pong_id, None)
+            def _on_keep_alive_pong(self, msg_id, msg_data):
+                pass
+            cls.register_command_handler(cls.keep_alive_params.ping_id, _on_keep_alive_ping)
+            cls.register_command_handler(cls.keep_alive_params.pong_id, _on_keep_alive_pong)
 
     order_map = {}
 
@@ -372,6 +375,7 @@ class _Session(AsynMsgDispatcher):
         self._force_wait_timeout = False
 
         self._ready = True
+        self._serial = -1
 
     def close(self):
         AsynMsgDispatcher.close(self)
@@ -394,8 +398,19 @@ class _Session(AsynMsgDispatcher):
     def get_error(self):
         return self._error
 
+    def get_local_address(self):
+        return self.socket.getsockname()
+
     def get_remote_address(self):
         return self.addr
+
+    def get_serial(self):
+        return self._serial
+
+    def get_low_level_desc(self):
+        local_addr = self.get_local_address()
+        remote_addr = self.get_remote_address()
+        return '%s(%s:%d,%s:%d)(%d)' % (self.__class__.__name__, local_addr[0], local_addr[1], remote_addr[0], remote_addr[1], self._serial)
 
     def check_open(self):
         return True
@@ -469,9 +484,10 @@ class _Session(AsynMsgDispatcher):
             return handler(self, msg_id, msg_data)
 
     def on_unhandled_message(self, msg_id, msg_data):
-        logger.warning("unhandled message '%s' from %s:%d", msg_id, self.addr[0], self.addr[1])
+        logger.warning('%s unhandled message(%s)', self.get_low_level_desc(), msg_id)
 
-    def send_message(self, msg_id, msg_data=None):
+    def send_message(self, msg_id, msg_data):
+        """msg_data can be None"""
         if self._error.has_error() or self._force_close_time > 0:
             return False
 
@@ -492,7 +508,7 @@ class _Session(AsynMsgDispatcher):
                 break
             if not _is_valid_message_format(pair):
                 try:
-                    logger.error('invalid message format from %s:%d, %s', self.addr[0], self.addr[1], str(pair))
+                    logger.error('%s invalid message format: %s', self.get_low_level_desc(), str(pair))
                 except:
                     pass
                 self._error.set_error(Error.ERROR_RECV_MESSAGE_FORMAT)
@@ -500,7 +516,7 @@ class _Session(AsynMsgDispatcher):
 
             code = self.handle_message(pair[0], pair[1])
             if code is False and not self._error.has_error():
-                logger.error('handle message(%s) error from %s:%d', pair[0], self.addr[0], self.addr[1])
+                logger.error('%s handle message(%s) error', self.get_low_level_desc(), pair[0])
                 self._error.set_error(Error.ERROR_HANDLE_MESSAGE)
 
             if self._error.has_error():
@@ -515,7 +531,7 @@ class _Session(AsynMsgDispatcher):
             return 0
         length = struct.unpack_from(self.__class__.message_packer.size_fmt, self._in_buffer)[0]
         if length < size_length or length > self.__class__.max_message_size:
-            logger.error('invalid message size from %s:%d, size=%d max_size=%d', self.addr[0], self.addr[1], length, self.__class__.max_message_size)
+            logger.error('%s invalid message size(%d), must between [%d~%d]', self.get_low_level_desc(), length, size_length, self.__class__.max_message_size)
             self._error.set_error(Error.ERROR_UNPACK_INVALID_MESSAGE_SIZE)
             return -1
         if buff_length < length:
@@ -545,28 +561,21 @@ class _Session(AsynMsgDispatcher):
             if self._keep_alive_probe_count > self.__class__.keep_alive_params.probes:
                 self._error.set_error(Error.ERROR_KEEP_ALIVE_TIMEOUT)
             else:
-                self.send_message(self.__class__.keep_alive_params.ping_id)
+                self.send_message(self.__class__.keep_alive_params.ping_id, None)
 
     def _on_keep_alive_ping(self, msg_id, msg_data):
-        self.send_message(self.__class__.keep_alive_params.pong_id)
+        self.send_message(self.__class__.keep_alive_params.pong_id, None)
 
 
 class SessionS(_Session):
     def __init__(self, sock, address):
         _Session.__init__(self, sock, address)
-        self._serial = -1
-        pass
-
-    def get_serial(self):
-        return self._serial
 
     def on_opened(self):
-        local_addr = self.socket.getsockname()
-        logger.info('%s(%d)(%s:%d,%s:%d) open' % (self.__class__.__name__, self.get_serial(), local_addr[0], local_addr[1], self.addr[0], self.addr[1]))
+        logger.info('%s open' % (self.get_low_level_desc()))
 
     def on_closing(self):
-        local_addr = self.socket.getsockname()
-        logger.info('%s(%d)(%s:%d,%s:%d) close, error(%s)' % (self.__class__.__name__, self.get_serial(), local_addr[0], local_addr[1], self.addr[0], self.addr[1], self._error))
+        logger.info('%s close, error(%s)' % (self.get_low_level_desc(), self._error))
 
 
 class Server(AsynMsgDispatcher):
@@ -715,12 +724,10 @@ class SessionC(_Session):
         _Session.__init__(self, sock, address)
 
     def on_opened(self):
-        local_addr = self.socket.getsockname()
-        logger.info('%s(%s:%d,%s:%d) connected' % (self.__class__.__name__, local_addr[0], local_addr[1], self.addr[0], self.addr[1]))
+        logger.info('%s connected' % (self.get_low_level_desc()))
 
     def on_closing(self):
-        local_addr = self.socket.getsockname()
-        logger.info('%s(%s:%d,%s:%d) disconnect, error(%s)' % (self.__class__.__name__, local_addr[0], local_addr[1], self.addr[0], self.addr[1], self._error))
+        logger.info('%s disconnect, error(%s)' % (self.get_low_level_desc(), self._error))
 
 
 class Client:
@@ -730,6 +737,7 @@ class Client:
     def __init__(self):
         self._started = False
         self._session = None
+        self._next_serial = 0
         self._error = Error()
 
         self._connect_address = ''
@@ -830,6 +838,8 @@ class Client:
 
         #{ build link
         session._manage_owner = self
+        session._serial = self._next_serial
+        self._next_serial += 1
         self._session = session
         #}
 
@@ -855,6 +865,7 @@ class Client:
     def log_info(self, message, type='info'):
         _wrapper_asyncore_log(message, type)
 
+
 class ClientInfinite(AsynMsgDispatcher):
     session_class = SessionC
     only_stop_self_when_tick_error = False
@@ -863,6 +874,7 @@ class ClientInfinite(AsynMsgDispatcher):
         AsynMsgDispatcher.__init__(self)
         self._started = False
         self._session = None
+        self._next_serial = 0
 
         self._connect_address = ''
         self._wait_retry_interval = 10
@@ -969,6 +981,8 @@ class ClientInfinite(AsynMsgDispatcher):
 
         #{ build link
         session._manage_owner = self
+        session._serial = self._next_serial
+        self._next_serial += 1
         self._session = session
         #}
 
