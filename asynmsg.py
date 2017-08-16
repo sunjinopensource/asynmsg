@@ -326,14 +326,16 @@ def with_message_handler_config(cls):
 class message_handler_config:
     total_count = 0
 
-    def __init__(self, msg_id):
+    def __init__(self, msg_id, allow_override=True):
         self.msg_id = msg_id
+        self.allow_override = allow_override
         self.index = self.__class__.total_count
         self.__class__.total_count += 1
 
     def __call__(self, func):
         func._message_handler_index = self.index
         func._message_handler_msg_id = self.msg_id
+        func._message_handler_allow_override = self.allow_override
         return func
 
 
@@ -354,7 +356,11 @@ class _Session(AsynMsgDispatcher):
     @classmethod
     def register_command_handler(cls, cmd, handler):
         if cmd in cls._command_factory:
-            raise RuntimeError("Can't register message handler with duplicate id '%s'." % cmd)
+            old_handler = cls._command_factory[cmd]
+            if hasattr(old_handler,'_message_handler_allow_override') and old_handler._message_handler_allow_override:
+                cls._command_factory[cmd] = handler
+            else:
+                raise RuntimeError("Can't register message handler with duplicate id '%s'." % cmd)
         cls._command_factory[cmd] = handler
 
     def __init__(self, sock, address):
