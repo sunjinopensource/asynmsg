@@ -1,6 +1,9 @@
 # Changelog
 
-## 0.2.11
+## 0.2.2
++message_handler_config.allow_override
+
+## 0.2.1
 fix with_message_handler_config for sub class
 
 ## 0.1.15
