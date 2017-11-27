@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.2.4
+fix ClientInfinite.wait_retry: log when connect address is not None
+
 ## 0.2.3
 +ClientInfinite only connect after set_connect_address
 
