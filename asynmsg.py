@@ -746,7 +746,7 @@ class Client:
         self._next_serial = 0
         self._error = Error()
 
-        self._connect_address = ''
+        self._connect_address = None
         self._connect_timeout = 5
 
     def set_connect_address(self, address):
@@ -882,12 +882,13 @@ class ClientInfinite(AsynMsgDispatcher):
         self._session = None
         self._next_serial = 0
 
-        self._connect_address = ''
+        self._connect_address = None
         self._wait_retry_interval = 10
 
         self._connect_time = 0
 
     def set_connect_address(self, address):
+        """在start前若没有调用该方法，则在start后调用该方法时会立即发起连接"""
         self._connect_address = address
 
     def set_wait_retry_interval(self, interval):
@@ -921,8 +922,9 @@ class ClientInfinite(AsynMsgDispatcher):
         if self._session is None:
             if self.socket is None:
                 if self._connect_time < time.time():
-                    self.log_info('%s(%s:%d) start connecting...' % (self.__class__.__name__, self._connect_address[0], self._connect_address[1]))
-                    self.do_connect()
+                    if self._connect_address is not None:
+                        self.log_info('%s(%s:%d) start connecting...' % (self.__class__.__name__, self._connect_address[0], self._connect_address[1]))
+                        self.do_connect()
                 else:
                     pass # 等待发起下次连接
             else:
