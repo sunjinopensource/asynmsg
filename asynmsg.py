@@ -22,7 +22,7 @@ try:
 except ImportError:
     import pickle
 
-__version__ = '0.2.3'
+__version__ = '0.2.4'
 __all__ = [
     "Error",
     "SessionS", "SessionC",
@@ -945,7 +945,8 @@ class ClientInfinite(AsynMsgDispatcher):
     def wait_retry(self, interval=None):
         if interval is None:
             interval = self._wait_retry_interval
-        self.log_info('%s(%s:%d) try reconnect after %d seconds' % (self.__class__.__name__, self._connect_address[0], self._connect_address[1], interval))
+        if self._connect_address is not None:
+            self.log_info('%s(%s:%d) try reconnect after %d seconds' % (self.__class__.__name__, self._connect_address[0], self._connect_address[1], interval))
         self.do_wait_retry(interval)
 
     def do_wait_retry(self, interval):
