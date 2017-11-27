@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.2.3
++ClientInfinite only connect after set_connect_address
+
 ## 0.2.2
 +message_handler_config.allow_override
 
