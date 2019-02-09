@@ -14,7 +14,7 @@ setup(
     description='A library help to build tcp server/client application',
     long_description=readme,
     author='Sun Jin',
-    author_email='sunjinopensource@qq.com',
+    author_email='412640665@qq.com',
     url='https://github.com/sunjinopensource/asynmsg/',
 	py_modules=['asynmsg'],
     classifiers=[
